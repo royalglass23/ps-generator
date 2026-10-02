@@ -11,7 +11,7 @@ Local backend foundation for the PS1 application journey. It is a Next.js applic
 - Reserves uploads atomically, sends the browser directly to R2, then checks size, content type, and file signature before accepting the object.
 - Queues the internal ServiceM8/support message and applicant confirmation in the same database transaction as submission.
 - Sends the internal email with the uploaded plans attached through short-lived R2 download URLs.
-- Uses a claimed email outbox, retries, and stable Resend idempotency keys.
+- Attempts queued email delivery immediately after submission and information responses, while retaining a claimed outbox, retries, and stable Resend idempotency keys for reliability.
 - Enforces atomic, Neon-backed fixed-window limits before draft allocation and upload reservation; only HMAC identifiers are stored.
 - Accepts an applicant response only for a matching open More Information Request.
 - Claims and removes expired drafts and their R2 objects through an authenticated daily cron.
@@ -72,7 +72,7 @@ Uploads currently allow PDF, JPEG, PNG, and DWG, up to five files, 10 MiB per fi
 
 `vercel.json` declares:
 
-- `/api/cron/email-outbox` every five minutes.
+- `/api/cron/email-outbox` daily as a free-plan retry sweep; normal delivery is attempted immediately after each application event queues email.
 - `/api/cron/draft-cleanup` daily.
 
 Both require `Authorization: Bearer <CRON_SECRET>`. They are code only until the project is deployed; local validation does not call Resend, R2, Neon, ServiceM8, or Vercel.

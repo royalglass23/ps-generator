@@ -4,6 +4,7 @@ import { z } from "zod";
 import { bearerToken, errorResponse, unauthorizedResponse } from "@/lib/http";
 import { ApplicationError } from "@/modules/applications/errors";
 import { getApplicationService } from "@/modules/applications/runtime";
+import { persistWithImmediateEmailDispatch } from "@/modules/email/runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,11 +24,13 @@ export async function POST(request: Request, context: RouteContext) {
     if (!parsed.success) {
       throw new ApplicationError("VALIDATION_FAILED", "The response is invalid.", parsed.error.issues);
     }
-    const application = await getApplicationService().respondToInformationRequest(
-      id,
-      token,
-      requestId,
-      parsed.data.response,
+    const application = await persistWithImmediateEmailDispatch(() =>
+      getApplicationService().respondToInformationRequest(
+        id,
+        token,
+        requestId,
+        parsed.data.response,
+      ),
     );
     return NextResponse.json({ id: application.id, status: application.status });
   } catch (error) {
