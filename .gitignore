@@ -17,6 +17,7 @@ coverage/
 # Local/generated work products
 .codex-finalizer/
 .presentation-build/
+shareable-prototype/
 *.tar.gz
 
 # Logs and OS/editor files
