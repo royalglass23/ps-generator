@@ -1,0 +1,26 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Dependencies and build output
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+coverage/
+**/coverage/
+.vercel/
+**/.vercel/
+
+# Local/generated work products
+.codex-finalizer/
+.presentation-build/
+*.tar.gz
+
+# Logs and OS/editor files
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
