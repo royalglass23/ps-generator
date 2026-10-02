@@ -1,0 +1,1 @@
+ALTER TABLE "ps1_uploads" ADD COLUMN "status" text DEFAULT 'pending' NOT NULL;
