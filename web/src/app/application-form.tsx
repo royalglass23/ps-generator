@@ -17,6 +17,7 @@ import {
   type JourneyState,
   type UploadedFile,
 } from "@/modules/applications/public-journey";
+import { nextLocationTypes } from "@/modules/applications/location-types";
 import { DraftSavedNotice } from "./draft-saved-notice";
 
 declare global {
@@ -46,6 +47,25 @@ const systems = [
   ["viking-glass", "Viking Glass"], ["vista", "Vista"], ["not-sure", "Not sure"],
 ] as const;
 
+type SystemId = (typeof systems)[number][0];
+
+const systemReferenceImages: Partial<Record<SystemId, string>> = {
+  "double-disc": "/assets/fix-standoff.jpg",
+  hidden: "/assets/fix-standoff.jpg",
+  "jh-clamp": "/assets/fix-standoff.jpg",
+  "juralco-canopy": "/assets/not-sure.jpg",
+  lugano: "/assets/fix-standoff.jpg",
+  "mini-post": "/assets/fix-spigots.jpg",
+  "mp-sp14": "/assets/fix-spigots.jpg",
+  "side-channel": "/assets/fix-channel.jpg",
+  "top-channel": "/assets/fix-channel.jpg",
+  "unex-ascot": "/assets/not-sure.jpg",
+  "unex-metropolis": "/assets/not-sure.jpg",
+  "viking-aluminium": "/assets/not-sure.jpg",
+  "viking-glass": "/assets/not-sure.jpg",
+  vista: "/assets/not-sure.jpg",
+};
+
 const locationOptions = [
   ["deck", "Deck"], ["balcony", "Balcony"], ["stair", "Stair"], ["landing", "Landing"],
   ["juliet-window", "Juliet window"], ["entrance-facade", "Entrance facade"],
@@ -72,10 +92,59 @@ function Field({ label, value, onChange, type = "text", required = false, placeh
   return <label className="field"><span>{label}{required ? " *" : ""}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} /></label>;
 }
 
+function CheckIcon({ className = "" }: { className?: string }) {
+  return <svg className={`check-icon ${className}`} viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.25 6.35 11.5 13 4.75" /></svg>;
+}
+
 function Choice({ selected, title, description, onClick, image }: { selected: boolean; title: string; description?: string; onClick: () => void; image?: string }) {
   return <button type="button" className={`choice ${selected ? "selected" : ""}`} onClick={onClick} aria-pressed={selected}>
-    {image ? <Image src={image} alt="" width={520} height={320} /> : null}<span><strong>{title}{selected ? <b aria-hidden="true">✓</b> : null}</strong>{description ? <small>{description}</small> : null}</span>
+    {image ? <span className="choice-image"><Image src={image} alt="" fill loading="eager" sizes="(max-width: 560px) calc(100vw - 4rem), (max-width: 850px) 45vw, 260px" /></span> : null}<span><strong>{title}{selected ? <CheckIcon /> : null}</strong>{description ? <small>{description}</small> : null}</span>
   </button>;
+}
+
+type SiteLocation = JourneyState["site"]["locations"][number];
+
+function locationTypesSummary(types: string[]): string {
+  if (types.length === 0) return "Select one or more areas";
+  const labels = types.map((type) => locationOptions.find(([value]) => value === type)?.[1] ?? type);
+  return labels.length <= 2 ? labels.join(", ") : `${labels.length} areas selected`;
+}
+
+export function LocationAreaFields({ index, location, onChange, onToggle }: {
+  index: number;
+  location: SiteLocation;
+  onChange: (value: Partial<SiteLocation>) => void;
+  onToggle: (type: string) => void;
+}) {
+  return <div className="area-fields">
+    <div className="radio-row area-environment">
+      <span>Is this area internal or external? *</span>
+      <label><input type="radio" name={`environment-${index}`} checked={location.environment === "internal"} onChange={() => onChange({ environment: "internal" })} /> Internal</label>
+      <label><input type="radio" name={`environment-${index}`} checked={location.environment === "external"} onChange={() => onChange({ environment: "external" })} /> External</label>
+    </div>
+    <details className="multi-select">
+      <summary><span><strong>Area type *</strong><small>{locationTypesSummary(location.types)}</small></span></summary>
+      <div className="multi-select-options" role="group" aria-label={`Area ${index + 1} types`}>
+        {locationOptions.map(([value, label]) => <label key={value}><input type="checkbox" checked={location.types.includes(value)} onChange={() => onToggle(value)} /><span>{label}</span></label>)}
+      </div>
+    </details>
+    {location.types.includes("other") ? <Field label="Describe other location" required value={location.other} onChange={(other) => onChange({ other })} /> : null}
+  </div>;
+}
+
+export function SystemReferenceCard({ system }: { system: string }) {
+  const selectedSystem = systems.find(([value]) => value === system);
+  const image = systemReferenceImages[system as SystemId];
+
+  if (!selectedSystem || !image || system === "not-sure") return null;
+
+  return <figure className="system-reference-card">
+    <Image src={image} alt={`Reference view of the ${selectedSystem[1]} system`} width={1040} height={480} />
+    <figcaption>
+      <strong>{selectedSystem[1]}</strong>
+      <span>Representative prototype image — replace with the approved system photo.</span>
+    </figcaption>
+  </figure>;
 }
 
 export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId?: string }) {
@@ -227,7 +296,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
   }
 
   function designStep() {
-    return <><h3>What type of barrier is this?</h3><div className="image-grid"><Choice selected={state.design.family === "balustrade"} title="Glass balustrade" description="Decks, balconies, stairs, landings and other barriers." image="/assets/fix-spigots.jpg" onClick={() => patch("design", { family: "balustrade", system: "" })} /><Choice selected={state.design.family === "pool"} title="Pool barrier" description="Glass fencing around a swimming pool." image="/assets/use-pool.jpg" onClick={() => patch("design", { family: "pool", system: "" })} /></div><label className="field full"><span>Known Royal Glass system *</span><select value={state.design.system} onChange={(event) => patch("design", { ...state.design, system: event.target.value })}><option value="">Select a system</option>{systems.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the next documents step.</div> : null}</>;
+    return <><h3>What type of barrier is this?</h3><div className="image-grid"><Choice selected={state.design.family === "balustrade"} title="Glass balustrade" description="Decks, balconies, stairs, landings and other barriers." image="/assets/fix-spigots.jpg" onClick={() => patch("design", { family: "balustrade", system: "" })} /><Choice selected={state.design.family === "pool"} title="Pool barrier" description="Glass fencing around a swimming pool." image="/assets/use-pool.jpg" onClick={() => patch("design", { family: "pool", system: "" })} /></div><label className="field full"><span>Known Royal Glass system *</span><select value={state.design.system} onChange={(event) => patch("design", { ...state.design, system: event.target.value })}><option value="">Select a system</option>{systems.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SystemReferenceCard system={state.design.system} />{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the next documents step.</div> : null}</>;
   }
 
   function siteStep() {
@@ -239,15 +308,15 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
     function toggleLocation(index: number, type: string) {
       const location = state.site.locations[index];
       if (type === "pool-area" && !location.types.includes(type)) { patch("site", { ...state.site, locations: [{ ...location, types: [type], other: "" }] }); return; }
-      const types = location.types.includes(type) ? location.types.filter((item) => item !== type) : [...location.types.filter((item) => item !== "pool-area"), type].slice(0, 3);
+      const types = nextLocationTypes(location.types, type);
       updateLocation(index, { types, other: types.includes("other") ? location.other : "" });
     }
     return <><h3>What will the glass system be fixed to?</h3><div className="image-grid four">{substrates.map(([value, title, image]) => <Choice key={value} selected={state.site.substrate === value} title={title} image={`/assets/${image}`} onClick={() => patch("site", { ...state.site, substrate: value })} />)}</div><div className="section-head"><div><h3>Locations</h3><p>Add up to three areas. Pool area must be the only area.</p></div><button type="button" className="button secondary" disabled={state.site.locations.length >= 3 || state.site.locations.some((location) => location.types.includes("pool-area"))} onClick={() => patch("site", { ...state.site, locations: [...state.site.locations, { types: [], environment: "", other: "" }] })}>Add area</button></div>
-      <div className="areas">{state.site.locations.map((location, index) => <fieldset key={index} className="area"><legend>Area {index + 1}</legend>{state.site.locations.length > 1 ? <button type="button" className="text-button" onClick={() => patch("site", { ...state.site, locations: state.site.locations.filter((_, current) => current !== index) })}>Remove</button> : null}<div className="check-grid">{locationOptions.map(([value, label]) => <label key={value}><input type="checkbox" checked={location.types.includes(value)} onChange={() => toggleLocation(index, value)} /><span>{label}</span></label>)}</div>{location.types.includes("other") ? <Field label="Describe other location" required value={location.other} onChange={(other) => updateLocation(index, { other })} /> : null}<div className="radio-row"><span>Is this area internal or external? *</span><label><input type="radio" name={`environment-${index}`} checked={location.environment === "internal"} onChange={() => updateLocation(index, { environment: "internal" })} /> Internal</label><label><input type="radio" name={`environment-${index}`} checked={location.environment === "external"} onChange={() => updateLocation(index, { environment: "external" })} /> External</label></div></fieldset>)}</div></>;
+      <div className="areas">{state.site.locations.map((location, index) => <fieldset key={index} className="area"><legend>Area {index + 1}</legend>{state.site.locations.length > 1 ? <button type="button" className="text-button" onClick={() => patch("site", { ...state.site, locations: state.site.locations.filter((_, current) => current !== index) })}>Remove</button> : null}<LocationAreaFields index={index} location={location} onChange={(value) => updateLocation(index, value)} onToggle={(type) => toggleLocation(index, type)} /></fieldset>)}</div></>;
   }
 
   function documentsStep() {
-    return <><label className={`upload-zone ${files.length >= 5 ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || files.length >= 5} onChange={(event) => void addFiles(event.target.files)} /><strong>{files.length >= 5 ? "Maximum of 5 files reached" : "Select drawings, documents or photos"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{files.map((file) => <div key={file.id}><span><strong>{file.name}</strong><small>{Math.ceil(file.sizeBytes / 1024)} KB</small></span><b>Uploaded ✓</b></div>)}</div><div className="notice">Don’t have everything yet? Submit what you have. Royal Glass will review it and send a More Information Request if anything else is needed.</div></>;
+    return <><label className={`upload-zone ${files.length >= 5 ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || files.length >= 5} onChange={(event) => void addFiles(event.target.files)} /><strong>{files.length >= 5 ? "Maximum of 5 files reached" : "Select drawings, documents or photos"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{files.map((file) => <div key={file.id}><span><strong>{file.name}</strong><small>{Math.ceil(file.sizeBytes / 1024)} KB</small></span><b>Uploaded</b></div>)}</div><div className="notice">Don’t have everything yet? Submit what you have. Royal Glass will review it and send a More Information Request if anything else is needed.</div></>;
   }
 
   function reviewStep() {
@@ -267,7 +336,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
           <div className="masthead-content">
             <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
             <div className="success-heading">
-              <span className="success-icon" aria-hidden="true">✓</span>
+              <span className="success-icon"><CheckIcon className="success-check" /></span>
               <h1>Thank you. Your application is with Royal Glass.</h1>
             </div>
             <p>We have emailed a copy to you and sent the application to our team for review.</p>
@@ -296,7 +365,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
             <p className="masthead-intro">Tell us about your project and upload what you already have. Our team will review the information before a PS1 is prepared.</p>
             <div className="hero-progress" aria-label={`Step ${step + 1} of ${stepLabels.length}: ${stepLabels[step]}`}>
               <div><span>Step {step + 1} of {stepLabels.length}</span><strong>{stepLabels[step]}</strong></div>
-              <div className="hero-progress-track" aria-hidden="true"><span style={{ width: `${((step + 1) / stepLabels.length) * 100}%` }} /></div>
+              <div className="hero-progress-track" aria-hidden="true"><span style={{ transform: `scaleX(${(step + 1) / stepLabels.length})` }} /></div>
             </div>
           </div>
         </header>
@@ -313,7 +382,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
               {stepLabels.map((label, index) => {
                 const available = index <= furthestStep || index < step;
                 const complete = index < step && stepIsValid(state, index);
-                return <button type="button" key={label} disabled={!available} className={`${index === step ? "active" : ""} ${complete ? "complete" : ""}`} onClick={() => setStep(index)}><span>{complete ? "✓" : index + 1}</span>{label}</button>;
+                return <button type="button" key={label} disabled={!available} className={`${index === step ? "active" : ""} ${complete ? "complete" : ""}`} onClick={() => setStep(index)}><span>{complete ? <CheckIcon /> : index + 1}</span>{label}</button>;
               })}
             </div>
           </aside>
