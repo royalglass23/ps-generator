@@ -7,8 +7,8 @@ import * as schema from "./schema";
 let database: ReturnType<typeof createDatabase> | undefined;
 
 function createDatabase() {
-  const { DATABASE_URL } = getDatabaseConfig();
-  const client = postgres(DATABASE_URL, {
+  const { DATABASE_URL_PROD } = getDatabaseConfig();
+  const client = postgres(DATABASE_URL_PROD, {
     prepare: false,
     max: 5,
     idle_timeout: 20,
