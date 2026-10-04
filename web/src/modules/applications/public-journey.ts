@@ -57,6 +57,12 @@ export const initialJourneyState: JourneyState = {
   acknowledgement: false,
 };
 
+export function saveForLaterError(state: JourneyState): string | null {
+  const { name, mobile, email } = state.applicant;
+  if (name.trim() && mobile.trim() && /^\S+@\S+\.\S+$/.test(email.trim())) return null;
+  return "Enter your full name, mobile number, and a valid email address before saving for later.";
+}
+
 export function buildDraftPayload(state: JourneyState): DraftPayload {
   return {
     need: state.need,

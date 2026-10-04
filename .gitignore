@@ -16,6 +16,7 @@ coverage/
 
 # Local/generated work products
 .codex-finalizer/
+.impeccable/
 .presentation-build/
 shareable-prototype/
 *.tar.gz

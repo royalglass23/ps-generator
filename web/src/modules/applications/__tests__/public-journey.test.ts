@@ -5,6 +5,7 @@ import {
   buildSubmissionPayload,
   contentTypeForUpload,
   createDraftSession,
+  saveForLaterError,
   type JourneyState,
 } from "../public-journey";
 
@@ -71,6 +72,16 @@ describe("public application journey", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ turnstileToken: "turnstile-token" }),
     });
+  });
+
+  it("requires applicant contact details before saving for later", () => {
+    expect(saveForLaterError(completeState)).toBeNull();
+    expect(
+      saveForLaterError({
+        ...completeState,
+        applicant: { ...completeState.applicant, name: "", mobile: "", email: "not-an-email" },
+      }),
+    ).toBe("Enter your full name, mobile number, and a valid email address before saving for later.");
   });
 
   it("supplies the backend DWG content type when the browser leaves it blank", () => {
