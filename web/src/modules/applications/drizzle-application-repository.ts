@@ -101,6 +101,10 @@ export class DrizzleApplicationRepository implements ApplicationRepository {
     return mapApplication(row);
   }
 
+  async enqueueEmail(applicationId: string, message: EmailMessage): Promise<void> {
+    await this.db.insert(emailOutbox).values(outboxRows(applicationId, [message]));
+  }
+
   async submit(input: {
     id: string;
     payload: SubmissionPayload;

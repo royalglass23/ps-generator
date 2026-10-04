@@ -10,12 +10,14 @@ import {
   loadDraft,
   saveForLaterError,
   saveDraft,
+  sendDraftResumeLink,
   submitApplication,
   uploadApplicationFile,
   type DraftSession,
   type JourneyState,
   type UploadedFile,
 } from "@/modules/applications/public-journey";
+import { DraftSavedNotice } from "./draft-saved-notice";
 
 declare global {
   interface Window {
@@ -86,6 +88,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [savedReceipt, setSavedReceipt] = useState<{ resumeUrl: string; email: string; emailed?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState<{ reference: string; submittedAt: string } | null>(null);
   const turnstileContainer = useRef<HTMLDivElement>(null);
@@ -163,7 +166,17 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
       setStep(0);
       return;
     }
-    await persist("Draft saved. Keep this page link to return later.");
+    const activeSession = await persist("Draft saved");
+    if (!activeSession) return;
+    try {
+      const receipt = await sendDraftResumeLink(activeSession);
+      setSavedReceipt(receipt);
+      setStatus("");
+    } catch (reason) {
+      setSavedReceipt({ resumeUrl: activeSession.resumeUrl, email: state.applicant.email, emailed: false });
+      setStatus("Draft saved. The email could not be sent yet, so keep the link below.");
+      setError(reason instanceof Error ? reason.message : "The resume email could not be sent.");
+    }
   }
 
   async function addFiles(selected: FileList | null) {
@@ -309,6 +322,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
             {content}
             {error ? <div className="form-error" role="alert">{error}</div> : null}
             {status ? <div className="form-status" role="status">{status}</div> : null}
+            {savedReceipt ? <DraftSavedNotice {...savedReceipt} /> : null}
             <div className="form-actions">
               <button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button>
               <button type="button" className="button ghost" disabled={busy} onClick={() => void saveForLater()}>{busy ? "Saving…" : "Save for later"}</button>

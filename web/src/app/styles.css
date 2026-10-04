@@ -140,6 +140,9 @@
 .rg-ps1 .form-error, .rg-ps1 .form-status { margin-top: 1rem; padding: .8rem 1rem; border-radius: 3px; font-size: .82rem; }
 .rg-ps1 .form-error { border: 1px solid #ddb3af; background: var(--rg-danger-pale); color: var(--rg-danger); }
 .rg-ps1 .form-status { border: 1px solid #b9d7c9; background: var(--rg-success-pale); color: var(--rg-success); }
+.rg-ps1 .draft-saved-notice { margin-top: 1rem; padding: 1rem; display: grid; gap: .35rem; border: 1px solid #b9d7c9; border-radius: 3px; background: var(--rg-success-pale); color: var(--rg-success); font-size: .82rem; }
+.rg-ps1 .draft-saved-notice span { color: var(--rg-ink); }
+.rg-ps1 .draft-saved-notice a { overflow-wrap: anywhere; color: var(--rg-teal-dark); font-weight: 600; }
 
 .rg-ps1 .form-actions { margin-top: 2.25rem; padding-top: 1.35rem; display: flex; gap: .7rem; border-top: 1px solid var(--rg-line); }
 .rg-ps1 .button { min-height: 2.85rem; padding: .7rem 1.15rem; border: 1px solid transparent; border-radius: 3px; font-weight: 600; cursor: pointer; transition: background-color .18s ease, border-color .18s ease, color .18s ease; }

@@ -24,7 +24,6 @@ const emailConfigSchema = z.object({
 
 const applicationConfigSchema = z.object({
   APP_BASE_URL: z.string().url(),
-  DRAFT_RETENTION_DAYS: positiveInteger.default(7),
 });
 
 const cronConfigSchema = z.object({

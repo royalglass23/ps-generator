@@ -47,6 +47,7 @@ export interface ApplicationRepository {
     draftExpiresAt: Date;
     updatedAt: Date;
   }): Promise<ApplicationRecord>;
+  enqueueEmail(applicationId: string, message: EmailMessage): Promise<void>;
   submit(input: {
     id: string;
     payload: SubmissionPayload;

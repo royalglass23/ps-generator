@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSubmissionEmails } from "@/modules/email/templates";
+import { buildDraftResumeEmail, buildSubmissionEmails } from "@/modules/email/templates";
 
 describe("submission email templates", () => {
+  it("builds an applicant-only draft resume email with a private link", () => {
+    const resumeUrl = "https://ps1.example.test/application/draft-1#token=resume-secret";
+    const message = buildDraftResumeEmail({
+      applicantName: "Aroha Ngata",
+      applicantEmail: "aroha@example.co.nz",
+      resumeUrl,
+      supportEmail: "support@royalglass.co.nz",
+      applicantFromEmail: "Royal Glass <support@royalglass.co.nz>",
+    });
+
+    expect(message.kind).toBe("draft_resume");
+    expect(message.to).toEqual(["aroha@example.co.nz"]);
+    expect(message.text).toContain(resumeUrl);
+    expect(message.html).toContain(`href="${resumeUrl}"`);
+    expect(message.text).toContain("Keep this link private");
+    expect(message.text).toContain("expires after 24 hours");
+    expect(message.html).toContain("expires after 24 hours");
+  });
+
   it("routes the internal summary to support and ServiceM8 using the agreed subject", () => {
     const messages = buildSubmissionEmails({
       reference: "PS1-2026-ABC12345",

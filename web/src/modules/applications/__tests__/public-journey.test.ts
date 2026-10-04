@@ -6,6 +6,7 @@ import {
   contentTypeForUpload,
   createDraftSession,
   saveForLaterError,
+  sendDraftResumeLink,
   type JourneyState,
 } from "../public-journey";
 
@@ -82,6 +83,27 @@ describe("public application journey", () => {
         applicant: { ...completeState.applicant, name: "", mobile: "", email: "not-an-email" },
       }),
     ).toBe("Enter your full name, mobile number, and a valid email address before saving for later.");
+  });
+
+  it("requests a resume email for the authorized draft", async () => {
+    const session = {
+      id: "draft-1",
+      resumeToken: "resume-secret",
+      expiresAt: "2026-10-09T00:00:00.000Z",
+      resumeUrl: "https://example.test/application/draft-1#token=resume-secret",
+    };
+    const fetcher = vi.fn(async () =>
+      Response.json({ email: "aroha@example.co.nz", resumeUrl: session.resumeUrl }),
+    );
+
+    await expect(sendDraftResumeLink(session, fetcher)).resolves.toEqual({
+      email: "aroha@example.co.nz",
+      resumeUrl: session.resumeUrl,
+    });
+    expect(fetcher).toHaveBeenCalledWith("/api/applications/drafts/draft-1/resume-link", {
+      method: "POST",
+      headers: { Authorization: "Bearer resume-secret" },
+    });
   });
 
   it("supplies the backend DWG content type when the browser leaves it blank", () => {

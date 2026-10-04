@@ -48,19 +48,20 @@ function setup() {
     createId: () => "11111111-1111-4111-8111-111111111111",
     createToken: () => `resume-token-${++tokenCounter}`,
     createReference: () => "PS1-2026-ABC12345",
-    draftRetentionDays: 7,
+    draftRetentionHours: 24,
+    applicationBaseUrl: "https://ps1.example.test",
   });
   return { repository, service };
 }
 
 describe("ApplicationService", () => {
-  it("creates a draft with a seven-day expiry and stores only the token hash", async () => {
+  it("creates a draft with a 24-hour expiry and stores only the token hash", async () => {
     const { repository, service } = setup();
 
     const created = await service.createDraft();
 
     expect(created.resumeToken).toBe("resume-token-1");
-    expect(created.expiresAt).toEqual(new Date("2026-10-09T00:00:00.000Z"));
+    expect(created.expiresAt).toEqual(new Date("2026-10-03T00:00:00.000Z"));
     const stored = repository.applications.get(created.id);
     expect(stored?.resumeTokenHash).not.toContain("resume-token-1");
     expect(stored?.status).toBe("draft");
@@ -90,16 +91,40 @@ describe("ApplicationService", () => {
     );
   });
 
-  it("renews the seven-day expiry whenever an authorized draft is saved", async () => {
+  it("renews the 24-hour expiry whenever an authorized draft is saved", async () => {
     const { repository, service } = setup();
     const created = await service.createDraft();
-    repository.now = new Date("2026-10-04T03:00:00.000Z");
+    repository.now = new Date("2026-10-02T03:00:00.000Z");
 
     const saved = await service.saveDraft(created.id, created.resumeToken, {
       applicant: { name: "Jordan Applicant" },
     });
 
-    expect(saved.draftExpiresAt).toEqual(new Date("2026-10-11T03:00:00.000Z"));
+    expect(saved.draftExpiresAt).toEqual(new Date("2026-10-03T03:00:00.000Z"));
+  });
+
+  it("emails the applicant a secure resume link for an explicitly saved draft", async () => {
+    const { repository, service } = setup();
+    const created = await service.createDraft();
+    await service.saveDraft(created.id, created.resumeToken, {
+      applicant: {
+        name: "Jordan Applicant",
+        mobile: "021 555 0101",
+        email: "jordan@example.test",
+      },
+    });
+
+    await service.sendDraftResumeLink(created.id, created.resumeToken);
+
+    expect(repository.outbox).toHaveLength(1);
+    expect(repository.outbox[0]).toMatchObject({
+      kind: "draft_resume",
+      to: ["jordan@example.test"],
+      subject: "Continue your Royal Glass PS1 application",
+    });
+    expect(repository.outbox[0]?.text).toContain(
+      `https://ps1.example.test/application/${created.id}#token=${encodeURIComponent(created.resumeToken)}`,
+    );
   });
 
   it("rejects invalid tokens and expired drafts without revealing which check failed", async () => {
@@ -111,6 +136,21 @@ describe("ApplicationService", () => {
     });
 
     repository.now = new Date("2026-10-10T00:00:00.000Z");
+    await expect(service.getDraft(created.id, created.resumeToken)).rejects.toMatchObject({
+      code: "APPLICATION_NOT_AVAILABLE",
+    });
+  });
+
+  it("caps legacy draft records at 24 hours from their latest save", async () => {
+    const { repository, service } = setup();
+    const created = await service.createDraft();
+    const stored = repository.applications.get(created.id)!;
+    repository.applications.set(created.id, {
+      ...stored,
+      draftExpiresAt: new Date("2026-10-09T00:00:00.000Z"),
+    });
+    repository.now = new Date("2026-10-03T00:00:01.000Z");
+
     await expect(service.getDraft(created.id, created.resumeToken)).rejects.toMatchObject({
       code: "APPLICATION_NOT_AVAILABLE",
     });

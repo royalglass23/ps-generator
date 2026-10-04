@@ -104,6 +104,36 @@ describe("PostgreSQL adapters", () => {
     expect((await database.select().from(emailOutbox).where(eq(emailOutbox.id, claimed!.id)))[0]?.sentAt).toEqual(claimNow);
   });
 
+  it("queues a draft resume email for immediate delivery", async () => {
+    const repository = new DrizzleApplicationRepository(database);
+    const draftId = "44444444-4444-4444-8444-444444444444";
+    await repository.createDraft({
+      id: draftId,
+      reference: null,
+      status: "draft",
+      resumeTokenHash: "hash",
+      payload: {},
+      draftExpiresAt: new Date("2026-10-09T00:00:00.000Z"),
+      createdAt: NOW,
+      updatedAt: NOW,
+      submittedAt: null,
+      lockedAt: null,
+    });
+
+    await repository.enqueueEmail(draftId, {
+      kind: "draft_resume",
+      from: "Royal Glass <support@royalglass.co.nz>",
+      to: ["applicant@example.test"],
+      subject: "Continue your Royal Glass PS1 application",
+      text: "Resume link",
+      html: "<p>Resume link</p>",
+    });
+
+    const rows = await database.select().from(emailOutbox).where(eq(emailOutbox.kind, "draft_resume"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.toAddresses).toEqual(["applicant@example.test"]);
+  });
+
   it("atomically rejects concurrent requests beyond a shared rate-limit bucket", async () => {
     const limiter = new RateLimiter({
       repository: new DrizzleRateLimitRepository(database),

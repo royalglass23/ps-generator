@@ -17,7 +17,7 @@ export function getApplicationService(): ApplicationService {
     const applicationConfig = getApplicationConfig();
     applicationService = new ApplicationService({
       repository: new DrizzleApplicationRepository(getDatabase()),
-      draftRetentionDays: applicationConfig.DRAFT_RETENTION_DAYS,
+      applicationBaseUrl: applicationConfig.APP_BASE_URL,
       email: () => {
         const emailConfig = getEmailConfig();
         return {

@@ -12,6 +12,14 @@ interface SubmissionEmailInput {
   applicantFromEmail: string;
 }
 
+interface DraftResumeEmailInput {
+  applicantName: string;
+  applicantEmail: string;
+  resumeUrl: string;
+  supportEmail: string;
+  applicantFromEmail: string;
+}
+
 export function escapeHtml(value: string): string {
   return value.replace(
     /[&<>"']/g,
@@ -24,6 +32,37 @@ export function escapeHtml(value: string): string {
 
 function summaryHtml(summaryText: string): string {
   return `<pre style="font:inherit;white-space:pre-wrap">${escapeHtml(summaryText)}</pre>`;
+}
+
+export function buildDraftResumeEmail(input: DraftResumeEmailInput): EmailMessage {
+  const text = [
+    `Hi ${input.applicantName}`,
+    "",
+    "Your Royal Glass PS1 application has been saved.",
+    "",
+    "Use this secure link to continue your application:",
+    input.resumeUrl,
+    "",
+    "This link expires after 24 hours.",
+    "",
+    "Keep this link private. Anyone with the link can access your saved application.",
+    "",
+    `If you have any questions, reply to this email or contact us at ${input.supportEmail}.`,
+    "",
+    "Kind regards,",
+    "Royal Glass",
+  ].join("\n");
+  const resumeUrl = escapeHtml(input.resumeUrl);
+
+  return {
+    kind: "draft_resume",
+    from: input.applicantFromEmail,
+    to: [input.applicantEmail],
+    replyTo: input.supportEmail,
+    subject: "Continue your Royal Glass PS1 application",
+    text,
+    html: `<p>Hi ${escapeHtml(input.applicantName)}</p><p>Your Royal Glass PS1 application has been saved.</p><p><a href="${resumeUrl}">Continue your application</a></p><p>This link expires after 24 hours.</p><p>Keep this link private. Anyone with the link can access your saved application.</p><p>If you have any questions, reply to this email or contact us at ${escapeHtml(input.supportEmail)}.</p><p>Kind regards,<br>Royal Glass</p>`,
+  };
 }
 
 export function buildSubmissionEmails(input: SubmissionEmailInput): EmailMessage[] {

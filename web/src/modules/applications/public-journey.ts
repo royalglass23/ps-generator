@@ -147,6 +147,18 @@ export async function saveDraft(
   );
 }
 
+export async function sendDraftResumeLink(
+  session: DraftSession,
+  fetcher: Fetcher = fetch,
+): Promise<{ email: string; resumeUrl: string }> {
+  return readJson(
+    await fetcher(`/api/applications/drafts/${session.id}/resume-link`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.resumeToken}` },
+    }),
+  );
+}
+
 export async function loadDraft(
   id: string,
   resumeToken: string,

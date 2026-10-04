@@ -1,4 +1,5 @@
 export type EmailKind =
+  | "draft_resume"
   | "internal_submission"
   | "applicant_confirmation"
   | "information_response_received";
