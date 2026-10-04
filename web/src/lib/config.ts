@@ -3,7 +3,7 @@ import { z } from "zod";
 const positiveInteger = z.coerce.number().int().positive();
 
 const databaseConfigSchema = z.object({
-  DATABASE_URL: z.string().url().startsWith("postgresql://"),
+  DATABASE_URL_PROD: z.string().url().startsWith("postgresql://"),
 });
 
 const r2ConfigSchema = z.object({

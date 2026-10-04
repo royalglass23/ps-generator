@@ -46,7 +46,7 @@ The application reads exactly the R2 variable names already chosen for this proj
 - `R2_SECRET_ACCESS_KEY_PS1`
 - `R2_REGION=auto`
 
-It also requires `DATABASE_URL`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `DRAFT_RETENTION_DAYS`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
+It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `DRAFT_RETENTION_DAYS`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
 
 ## Applicant API
 
