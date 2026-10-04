@@ -97,7 +97,7 @@ describe("PostgreSQL adapters", () => {
     const rows = await database.select().from(emailOutbox);
     expect(rows).toHaveLength(2);
     const outbox = new DrizzleOutboxRepository(database);
-    const claimNow = new Date("2026-10-03T00:00:00.000Z");
+    const claimNow = new Date(rows[0]!.availableAt.getTime() + 1_000);
     const claimed = await outbox.claimNext(claimNow, new Date(claimNow.getTime() - 600_000));
     expect(claimed?.attempts).toBe(1);
     await outbox.markSent(claimed!.id, claimed!.claimToken, claimNow, "provider-1");

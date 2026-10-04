@@ -15,15 +15,17 @@ let uploadService: UploadService | undefined;
 export function getApplicationService(): ApplicationService {
   if (!applicationService) {
     const applicationConfig = getApplicationConfig();
-    const emailConfig = getEmailConfig();
     applicationService = new ApplicationService({
       repository: new DrizzleApplicationRepository(getDatabase()),
       draftRetentionDays: applicationConfig.DRAFT_RETENTION_DAYS,
-      email: {
-        supportEmail: emailConfig.SUPPORT_EMAIL,
-        serviceM8Email: emailConfig.SERVICEM8_INBOX_EMAIL,
-        internalFromEmail: emailConfig.INTERNAL_EMAIL_FROM,
-        applicantFromEmail: emailConfig.APPLICANT_EMAIL_FROM,
+      email: () => {
+        const emailConfig = getEmailConfig();
+        return {
+          supportEmail: emailConfig.SUPPORT_EMAIL,
+          serviceM8Email: emailConfig.SERVICEM8_INBOX_EMAIL,
+          internalFromEmail: emailConfig.INTERNAL_EMAIL_FROM,
+          applicantFromEmail: emailConfig.APPLICANT_EMAIL_FROM,
+        };
       },
     });
   }

@@ -8,6 +8,7 @@ import {
   createDraftSession,
   initialJourneyState,
   loadDraft,
+  saveForLaterError,
   saveDraft,
   submitApplication,
   uploadApplicationFile,
@@ -54,7 +55,7 @@ function cloneInitialState(): JourneyState {
 }
 
 function stepIsValid(state: JourneyState, step: number): boolean {
-  if (step === 0) return Boolean(state.applicant.name.trim() && state.applicant.mobile.trim() && /^\S+@\S+\.\S+$/.test(state.applicant.email));
+  if (step === 0) return saveForLaterError(state) === null;
   if (step === 1) return Boolean(state.project.address.trim() && state.project.stage);
   if (step === 2) return Boolean(state.design.system);
   if (step === 3) return state.site.locations.length > 0 && state.site.locations.every((location) =>
@@ -152,6 +153,17 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
     if (!saved) return;
     setStep((current) => Math.min(current + 1, stepLabels.length - 1));
     setFurthestStep((current) => Math.max(current, step + 1));
+  }
+
+  async function saveForLater() {
+    const contactError = saveForLaterError(state);
+    if (contactError) {
+      setStatus("");
+      setError(contactError);
+      setStep(0);
+      return;
+    }
+    await persist("Draft saved. Keep this page link to return later.");
   }
 
   async function addFiles(selected: FileList | null) {
@@ -299,7 +311,7 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
             {status ? <div className="form-status" role="status">{status}</div> : null}
             <div className="form-actions">
               <button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button>
-              <button type="button" className="button ghost" disabled={busy} onClick={() => void persist("Draft saved. Keep this page link to return later.")}>{busy ? "Saving…" : "Save for later"}</button>
+              <button type="button" className="button ghost" disabled={busy} onClick={() => void saveForLater()}>{busy ? "Saving…" : "Save for later"}</button>
               {step < stepLabels.length - 1 ? <button type="button" className="button primary" disabled={busy || !stepIsValid(state, step)} onClick={() => void continueForward()}>{busy ? "Saving…" : "Continue"}</button> : <button type="button" className="button primary" disabled={busy || !allRequiredValid || !state.acknowledgement} onClick={() => void submit()}>{busy ? "Submitting…" : "Submit application"}</button>}
             </div>
           </section>

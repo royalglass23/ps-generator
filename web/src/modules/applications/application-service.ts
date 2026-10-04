@@ -11,6 +11,13 @@ import {
 } from "./schemas";
 import type { ApplicationRecord, ApplicationRepository } from "./types";
 
+interface EmailConfiguration {
+  supportEmail: string;
+  serviceM8Email: string;
+  internalFromEmail: string;
+  applicantFromEmail: string;
+}
+
 interface ApplicationServiceDependencies {
   repository: ApplicationRepository;
   now?: () => Date;
@@ -18,12 +25,7 @@ interface ApplicationServiceDependencies {
   createToken?: () => string;
   createReference?: (applicationId: string, now: Date) => string;
   draftRetentionDays?: number;
-  email?: {
-    supportEmail: string;
-    serviceM8Email: string;
-    internalFromEmail: string;
-    applicantFromEmail: string;
-  };
+  email?: EmailConfiguration | (() => EmailConfiguration);
 }
 
 function hashToken(token: string): string {
@@ -80,7 +82,7 @@ export class ApplicationService {
   private readonly createToken: () => string;
   private readonly createReference: (applicationId: string, now: Date) => string;
   private readonly draftRetentionDays: number;
-  private readonly email: NonNullable<ApplicationServiceDependencies["email"]>;
+  private readonly getEmail: () => EmailConfiguration;
 
   constructor(dependencies: ApplicationServiceDependencies) {
     this.repository = dependencies.repository;
@@ -89,14 +91,14 @@ export class ApplicationService {
     this.createToken = dependencies.createToken ?? (() => randomBytes(32).toString("base64url"));
     this.createReference = dependencies.createReference ?? defaultReference;
     this.draftRetentionDays = dependencies.draftRetentionDays ?? 7;
-    this.email =
-      dependencies.email ??
-      ({
+    const email =
+      dependencies.email ?? {
         supportEmail: "support@royalglass.co.nz",
         serviceM8Email: "de9f86@inbox.servicem8.com",
         internalFromEmail: "PS1 Generator <support@royalglass.co.nz>",
         applicantFromEmail: "Royal Glass <support@royalglass.co.nz>",
-      } as const);
+      };
+    this.getEmail = typeof email === "function" ? email : () => email;
   }
 
   async createDraft(): Promise<{ id: string; resumeToken: string; expiresAt: Date }> {
@@ -162,6 +164,7 @@ export class ApplicationService {
     }
     const now = this.now();
     const reference = this.createReference(id, now);
+    const email = this.getEmail();
     return this.repository.submit({
       id,
       payload: parsed.data,
@@ -177,7 +180,7 @@ export class ApplicationService {
             parsed.data,
             uploads.map((upload) => upload.filename),
           ),
-          ...this.email,
+          ...email,
         }),
     });
   }
@@ -204,10 +207,11 @@ export class ApplicationService {
     if (!cleanResponse || cleanResponse.length > 5_000) {
       throw new ApplicationError("VALIDATION_FAILED", "The response is invalid.");
     }
+    const email = this.getEmail();
     const message: EmailMessage = {
       kind: "information_response_received",
-      from: this.email.internalFromEmail,
-      to: [this.email.supportEmail, this.email.serviceM8Email],
+      from: email.internalFromEmail,
+      to: [email.supportEmail, email.serviceM8Email],
       replyTo:
         "applicant" in application.payload
           ? (application.payload as SubmissionPayload).applicant.email

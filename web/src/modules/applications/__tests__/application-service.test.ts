@@ -66,6 +66,30 @@ describe("ApplicationService", () => {
     expect(stored?.status).toBe("draft");
   });
 
+  it("does not load email configuration until an email-producing action", async () => {
+    const repository = new InMemoryApplicationRepository();
+    const service = new ApplicationService({
+      repository,
+      now: () => repository.now,
+      createId: () => "11111111-1111-4111-8111-111111111111",
+      createToken: () => "resume-token-1",
+      email: () => {
+        throw new Error("Invalid email configuration");
+      },
+    });
+
+    const created = await service.createDraft();
+
+    await expect(
+      service.saveDraft(created.id, created.resumeToken, {
+        applicant: { name: "Jordan Applicant", mobile: "021 555 0101", email: "jordan@example.test" },
+      }),
+    ).resolves.toMatchObject({ status: "draft" });
+    await expect(service.submit(created.id, created.resumeToken, validSubmission)).rejects.toThrow(
+      "Invalid email configuration",
+    );
+  });
+
   it("renews the seven-day expiry whenever an authorized draft is saved", async () => {
     const { repository, service } = setup();
     const created = await service.createDraft();
