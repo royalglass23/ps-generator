@@ -232,7 +232,79 @@ export function ApplicationForm({ siteKey, draftId }: { siteKey: string; draftId
   }
 
   const content = [applicantStep, projectStep, designStep, siteStep, documentsStep, reviewStep][step]();
-  if (submitted) return <div className="portal-shell"><header className="brand-header"><div className="brand-mark">RG</div><div><strong>Royal Glass</strong><span>PS1 application portal</span></div></header><main className="success-card"><span className="success-icon">✓</span><p className="eyebrow">Application received</p><h1>Thank you. Your application is with Royal Glass.</h1><p>We have emailed a copy to you and sent the application to our team for review.</p><div><span>Application reference</span><strong>{submitted.reference}</strong></div></main></div>;
+  const saveState = status || (session ? "Draft active" : "Not saved yet");
 
-  return <div className="portal-shell"><Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setTurnstileReady(true)} onError={() => setError("The security check could not load. Refresh the page and try again.")} /><header className="brand-header"><div className="brand-mark">RG</div><div><strong>Royal Glass</strong><span>PS1 application portal</span></div><p>Secure application · {status || (session ? "Draft active" : "Not saved yet")}</p></header><section className="portal-intro"><p className="eyebrow">Glass balustrade & barrier design</p><h1>Request a PS1</h1><p>Tell us about your project and upload what you already have. Our team will review the information before a PS1 is prepared.</p></section><section className="primer"><div><strong>PS1 is for design</strong><span>Start before installation. A PS3 relates to completed work.</span></div><div><strong>You can begin now</strong><span>Incomplete drawings are okay—upload what you already have.</span></div><div><strong>Reviewed by people</strong><span>Royal Glass confirms the correct route after submission.</span></div></section><main className="application-layout"><aside className="step-rail"><h2>Your application</h2><p>Complete each section in order.</p>{stepLabels.map((label, index) => { const available = index <= furthestStep || index < step; const complete = index < step && stepIsValid(state, index); return <button type="button" key={label} disabled={!available} className={index === step ? "active" : ""} onClick={() => setStep(index)}><span>{complete ? "✓" : index + 1}</span>{label}</button>; })}</aside><section className="form-card"><div className="step-heading"><span>{step + 1}</span><div><p className="eyebrow">Step {step + 1} of {stepLabels.length}</p><h2>{stepLabels[step]}</h2></div></div>{content}{error ? <div className="form-error" role="alert">{error}</div> : null}{status ? <div className="form-status" role="status">{status}</div> : null}<div className="form-actions"><button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button><button type="button" className="button ghost" disabled={busy} onClick={() => void persist("Draft saved. Keep this page link to return later.")}>{busy ? "Saving…" : "Save for later"}</button>{step < stepLabels.length - 1 ? <button type="button" className="button primary" disabled={busy || !stepIsValid(state, step)} onClick={() => void continueForward()}>{busy ? "Saving…" : "Continue"}</button> : <button type="button" className="button primary" disabled={busy || !allRequiredValid || !state.acknowledgement} onClick={() => void submit()}>{busy ? "Submitting…" : "Submit application"}</button>}</div></section></main></div>;
+  if (submitted) return (
+    <div className="rg-ps1">
+      <div className="portal-shell">
+        <header className="portal-masthead success-masthead">
+          <div className="masthead-shade" />
+          <div className="masthead-content">
+            <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
+            <div className="success-heading">
+              <span className="success-icon" aria-hidden="true">✓</span>
+              <h1>Thank you. Your application is with Royal Glass.</h1>
+            </div>
+            <p>We have emailed a copy to you and sent the application to our team for review.</p>
+          </div>
+        </header>
+        <main className="success-card">
+          <p className="success-label">Application received</p>
+          <div className="reference-panel"><span>Application reference</span><strong>{submitted.reference}</strong></div>
+        </main>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rg-ps1">
+      <div className="portal-shell">
+        <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setTurnstileReady(true)} onError={() => setError("The security check could not load. Refresh the page and try again.")} />
+        <header className="portal-masthead">
+          <div className="masthead-shade" />
+          <div className="masthead-content">
+            <div className="masthead-meta">
+              <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
+              <p>Secure application <span aria-hidden="true">·</span> {saveState}</p>
+            </div>
+            <h1>Request a PS1</h1>
+            <p className="masthead-intro">Tell us about your project and upload what you already have. Our team will review the information before a PS1 is prepared.</p>
+            <div className="hero-progress" aria-label={`Step ${step + 1} of ${stepLabels.length}: ${stepLabels[step]}`}>
+              <div><span>Step {step + 1} of {stepLabels.length}</span><strong>{stepLabels[step]}</strong></div>
+              <div className="hero-progress-track" aria-hidden="true"><span style={{ width: `${((step + 1) / stepLabels.length) * 100}%` }} /></div>
+            </div>
+          </div>
+        </header>
+        <section className="primer" aria-label="Before you start">
+          <div><strong>PS1 is for design</strong><span>Start before installation. A PS3 relates to completed work.</span></div>
+          <div><strong>You can begin now</strong><span>Incomplete drawings are okay—upload what you already have.</span></div>
+          <div><strong>Reviewed by people</strong><span>Royal Glass confirms the correct route after submission.</span></div>
+        </section>
+        <main className="application-layout">
+          <aside className="step-rail">
+            <h2>Your application</h2>
+            <p>Complete each section in order.</p>
+            <div className="step-list" data-step={step}>
+              {stepLabels.map((label, index) => {
+                const available = index <= furthestStep || index < step;
+                const complete = index < step && stepIsValid(state, index);
+                return <button type="button" key={label} disabled={!available} className={`${index === step ? "active" : ""} ${complete ? "complete" : ""}`} onClick={() => setStep(index)}><span>{complete ? "✓" : index + 1}</span>{label}</button>;
+              })}
+            </div>
+          </aside>
+          <section className="form-card">
+            <div className="step-heading"><span>{step + 1}</span><div><p className="step-progress-label">Step {step + 1} of {stepLabels.length}</p><h2>{stepLabels[step]}</h2></div></div>
+            {content}
+            {error ? <div className="form-error" role="alert">{error}</div> : null}
+            {status ? <div className="form-status" role="status">{status}</div> : null}
+            <div className="form-actions">
+              <button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button>
+              <button type="button" className="button ghost" disabled={busy} onClick={() => void persist("Draft saved. Keep this page link to return later.")}>{busy ? "Saving…" : "Save for later"}</button>
+              {step < stepLabels.length - 1 ? <button type="button" className="button primary" disabled={busy || !stepIsValid(state, step)} onClick={() => void continueForward()}>{busy ? "Saving…" : "Continue"}</button> : <button type="button" className="button primary" disabled={busy || !allRequiredValid || !state.acknowledgement} onClick={() => void submit()}>{busy ? "Submitting…" : "Submit application"}</button>}
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  );
 }
