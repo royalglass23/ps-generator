@@ -463,7 +463,7 @@
       state.furthestStep = Math.max(state.furthestStep, state.step);
       return render();
     }
-    if (target.matches('[data-save]')) return window.alert('Prototype: the production portal will save this draft for 7 days and email you a secure link to resume it.');
+    if (target.matches('[data-save]')) return window.alert('Prototype: the production portal will save this draft for 24 hours and email you a secure link to resume it.');
     if (target.matches('[data-help]')) return window.alert('Prototype: this would open the Royal Glass technical help path without losing the draft.');
     if (target.matches('[data-location-menu-toggle]')) {
       const index = Number(target.dataset.locationMenuToggle);

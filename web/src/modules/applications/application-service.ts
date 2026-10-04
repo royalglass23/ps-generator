@@ -1,6 +1,10 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
-import { buildSubmissionEmails, escapeHtml } from "@/modules/email/templates";
+import {
+  buildDraftResumeEmail,
+  buildSubmissionEmails,
+  escapeHtml,
+} from "@/modules/email/templates";
 import type { EmailMessage } from "@/modules/email/types";
 
 import { ApplicationError } from "./errors";
@@ -24,7 +28,8 @@ interface ApplicationServiceDependencies {
   createId?: () => string;
   createToken?: () => string;
   createReference?: (applicationId: string, now: Date) => string;
-  draftRetentionDays?: number;
+  draftRetentionHours?: number;
+  applicationBaseUrl?: string;
   email?: EmailConfiguration | (() => EmailConfiguration);
 }
 
@@ -38,8 +43,8 @@ function tokensMatch(token: string, storedHash: string): boolean {
   return supplied.length === stored.length && timingSafeEqual(supplied, stored);
 }
 
-function addDays(value: Date, days: number): Date {
-  return new Date(value.getTime() + days * 24 * 60 * 60 * 1000);
+function addHours(value: Date, hours: number): Date {
+  return new Date(value.getTime() + hours * 60 * 60 * 1000);
 }
 
 function defaultReference(applicationId: string, now: Date): string {
@@ -81,7 +86,8 @@ export class ApplicationService {
   private readonly createId: () => string;
   private readonly createToken: () => string;
   private readonly createReference: (applicationId: string, now: Date) => string;
-  private readonly draftRetentionDays: number;
+  private readonly draftRetentionHours: number;
+  private readonly applicationBaseUrl?: string;
   private readonly getEmail: () => EmailConfiguration;
 
   constructor(dependencies: ApplicationServiceDependencies) {
@@ -90,7 +96,8 @@ export class ApplicationService {
     this.createId = dependencies.createId ?? randomUUID;
     this.createToken = dependencies.createToken ?? (() => randomBytes(32).toString("base64url"));
     this.createReference = dependencies.createReference ?? defaultReference;
-    this.draftRetentionDays = dependencies.draftRetentionDays ?? 7;
+    this.draftRetentionHours = dependencies.draftRetentionHours ?? 24;
+    this.applicationBaseUrl = dependencies.applicationBaseUrl;
     const email =
       dependencies.email ?? {
         supportEmail: "support@royalglass.co.nz",
@@ -105,7 +112,7 @@ export class ApplicationService {
     const now = this.now();
     const id = this.createId();
     const resumeToken = this.createToken();
-    const expiresAt = addDays(now, this.draftRetentionDays);
+    const expiresAt = addHours(now, this.draftRetentionHours);
     await this.repository.createDraft({
       id,
       reference: null,
@@ -143,9 +150,41 @@ export class ApplicationService {
     return this.repository.updateDraft({
       id,
       payload: parsed.data,
-      draftExpiresAt: addDays(now, this.draftRetentionDays),
+      draftExpiresAt: addHours(now, this.draftRetentionHours),
       updatedAt: now,
     });
+  }
+
+  async sendDraftResumeLink(
+    id: string,
+    resumeToken: string,
+  ): Promise<{ email: string; resumeUrl: string }> {
+    const application = await this.authorizeDraft(id, resumeToken);
+    const applicant = application.payload.applicant;
+    const applicantName = applicant?.name?.trim();
+    const applicantEmail = applicant?.email?.trim();
+    if (!applicantName || !applicantEmail || !/^\S+@\S+\.\S+$/.test(applicantEmail)) {
+      throw new ApplicationError(
+        "VALIDATION_FAILED",
+        "Enter your full name and a valid email address before saving for later.",
+      );
+    }
+    if (!this.applicationBaseUrl) {
+      throw new Error("Application base URL is not configured.");
+    }
+    const resumeUrl = `${this.applicationBaseUrl.replace(/\/$/, "")}/application/${encodeURIComponent(id)}#token=${encodeURIComponent(resumeToken)}`;
+    const email = this.getEmail();
+    await this.repository.enqueueEmail(
+      id,
+      buildDraftResumeEmail({
+        applicantName,
+        applicantEmail,
+        resumeUrl,
+        supportEmail: email.supportEmail,
+        applicantFromEmail: email.applicantFromEmail,
+      }),
+    );
+    return { email: applicantEmail, resumeUrl };
   }
 
   async submit(id: string, resumeToken: string, payload: unknown): Promise<ApplicationRecord> {
@@ -275,7 +314,13 @@ export class ApplicationService {
   }
 
   private ensureDraftNotExpired(application: ApplicationRecord): void {
-    if (!application.draftExpiresAt || application.draftExpiresAt.getTime() <= this.now().getTime()) {
+    const maximumExpiry = addHours(application.updatedAt, this.draftRetentionHours);
+    const now = this.now().getTime();
+    if (
+      !application.draftExpiresAt ||
+      application.draftExpiresAt.getTime() <= now ||
+      maximumExpiry.getTime() <= now
+    ) {
       throw new ApplicationError(
         "APPLICATION_NOT_AVAILABLE",
         "The application is not available.",

@@ -39,6 +39,10 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
     return structuredClone(updated);
   }
 
+  async enqueueEmail(_applicationId: string, message: EmailMessage): Promise<void> {
+    this.outbox.push(structuredClone(message));
+  }
+
   async submit(input: {
     id: string;
     payload: SubmissionPayload;

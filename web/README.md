@@ -5,7 +5,7 @@ Local backend foundation for the PS1 application journey. It is a Next.js applic
 ## Implemented journey
 
 - Creates a draft with an opaque resume token; only its SHA-256 hash is stored.
-- Saves and reloads an authorized draft and rolls its expiry forward seven days.
+- Saves and reloads an authorized draft and rolls its expiry forward 24 hours.
 - Validates submission against the fields currently required by the prototype.
 - Locks applicant editing after submission.
 - Reserves uploads atomically, sends the browser directly to R2, then checks size, content type, and file signature before accepting the object.
@@ -46,7 +46,7 @@ The application reads exactly the R2 variable names already chosen for this proj
 - `R2_SECRET_ACCESS_KEY_PS1`
 - `R2_REGION=auto`
 
-It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `DRAFT_RETENTION_DAYS`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
+It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
 
 ## Applicant API
 
@@ -54,7 +54,7 @@ It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `
 | --- | --- | --- |
 | `POST` | `/api/applications/drafts` | Verify Turnstile, then create a draft and return its one-time resume credential. |
 | `GET` | `/api/applications/drafts/:id` | Load an authorized, unexpired draft. |
-| `PUT` | `/api/applications/drafts/:id` | Save a draft and renew its seven-day expiry. |
+| `PUT` | `/api/applications/drafts/:id` | Save a draft and renew its 24-hour expiry. |
 | `POST` | `/api/applications/drafts/:id/uploads` | Atomically reserve capacity and return a signed R2 `PUT` URL. |
 | `POST` | `/api/applications/drafts/:id/uploads/:uploadId/complete` | Inspect and accept the uploaded R2 object. |
 | `POST` | `/api/applications/drafts/:id/submit` | Validate, submit, lock, and queue notifications. |
