@@ -19,9 +19,9 @@ export const projectStages = [
   "existing",
   "other",
 ] as const;
-export const installationWindows = ["asap", "3_months", "6_months", "1_year", "2_years"] as const;
-export const designFamilies = ["balustrade", "pool"] as const;
-export const substrates = ["timber", "concrete", "steel", "tile-concrete"] as const;
+export const installationWindows = ["asap", "3_months", "6_months", "1_year", "2_years", "not_sure"] as const;
+export const designFamilies = ["balustrade", "pool", "not_sure"] as const;
+export const substrates = ["timber", "concrete", "steel", "tile-concrete", "not_sure"] as const;
 export const environments = ["internal", "external"] as const;
 
 const applicantDraftSchema = z
@@ -109,7 +109,7 @@ export const submissionPayloadSchema = z
         name: z.string().trim().min(1).max(200),
         mobile: z.string().trim().min(1).max(50),
         email: z.email().max(320),
-        role: z.enum(applicantRoles),
+        role: z.enum(applicantRoles).optional(),
       })
       .strict(),
     project: z
@@ -120,7 +120,7 @@ export const submissionPayloadSchema = z
         buildingConsentNumber: z.string().trim().max(100).default(""),
         resourceConsentNumber: z.string().trim().max(100).default(""),
         estimatedInstallation: z.enum(installationWindows),
-        stage: z.enum(projectStages),
+        stage: z.enum(projectStages).optional(),
       })
       .strict(),
     design: z
@@ -132,7 +132,7 @@ export const submissionPayloadSchema = z
     site: z
       .object({
         substrate: z.enum(substrates),
-        locations: z.array(locationSubmissionSchema).min(1).max(3),
+        locations: z.array(locationSubmissionSchema).max(3).default([]),
       })
       .strict()
       .superRefine((site, context) => {

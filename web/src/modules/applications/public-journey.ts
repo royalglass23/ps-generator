@@ -2,9 +2,25 @@ import type { DraftPayload, SubmissionPayload } from "./schemas";
 
 export interface JourneyState {
   need: NonNullable<DraftPayload["need"]>;
-  applicant: Required<NonNullable<DraftPayload["applicant"]>>;
-  project: Required<NonNullable<DraftPayload["project"]>>;
-  design: Required<NonNullable<DraftPayload["design"]>>;
+  applicant: {
+    name: string;
+    mobile: string;
+    email: string;
+    role: NonNullable<NonNullable<DraftPayload["applicant"]>["role"]> | "";
+  };
+  project: {
+    address: string;
+    city: string;
+    postalCode: string;
+    buildingConsentNumber: string;
+    resourceConsentNumber: string;
+    estimatedInstallation: NonNullable<NonNullable<DraftPayload["project"]>["estimatedInstallation"]>;
+    stage: NonNullable<NonNullable<DraftPayload["project"]>["stage"]> | "";
+  };
+  design: {
+    family: NonNullable<NonNullable<DraftPayload["design"]>["family"]> | "";
+    system: string;
+  };
   site: {
     substrate: NonNullable<NonNullable<DraftPayload["site"]>["substrate"]>;
     locations: Array<{
@@ -39,20 +55,20 @@ type Fetcher = typeof fetch;
 
 export const initialJourneyState: JourneyState = {
   need: "ps1",
-  applicant: { name: "", mobile: "", email: "", role: "architect" },
+  applicant: { name: "", mobile: "", email: "", role: "" },
   project: {
     address: "",
     city: "",
     postalCode: "",
     buildingConsentNumber: "",
     resourceConsentNumber: "",
-    estimatedInstallation: "asap",
-    stage: "preparing_consent",
+    estimatedInstallation: "not_sure",
+    stage: "",
   },
-  design: { family: "balustrade", system: "" },
+  design: { family: "", system: "" },
   site: {
-    substrate: "timber",
-    locations: [{ types: [], environment: "", other: "" }],
+    substrate: "not_sure",
+    locations: [],
   },
   acknowledgement: false,
 };
@@ -66,9 +82,9 @@ export function saveForLaterError(state: JourneyState): string | null {
 export function buildDraftPayload(state: JourneyState): DraftPayload {
   return {
     need: state.need,
-    applicant: { ...state.applicant },
-    project: { ...state.project },
-    design: { ...state.design },
+    applicant: { ...state.applicant, role: state.applicant.role || undefined },
+    project: { ...state.project, stage: state.project.stage || undefined },
+    design: { ...state.design, family: state.design.family || undefined },
     site: {
       substrate: state.site.substrate,
       locations: state.site.locations.map((location) => ({
@@ -84,8 +100,29 @@ export function buildSubmissionPayload(state: JourneyState): SubmissionPayload {
   if (!state.acknowledgement) {
     throw new Error("Confirm the application before submitting it.");
   }
+  const draft = buildDraftPayload(state);
   return {
-    ...buildDraftPayload(state),
+    ...draft,
+    need: state.need,
+    applicant: {
+      name: state.applicant.name,
+      mobile: state.applicant.mobile,
+      email: state.applicant.email,
+      role: state.applicant.role || undefined,
+    },
+    project: {
+      address: state.project.address,
+      city: state.project.city,
+      postalCode: state.project.postalCode,
+      buildingConsentNumber: state.project.buildingConsentNumber,
+      resourceConsentNumber: state.project.resourceConsentNumber,
+      estimatedInstallation: state.project.estimatedInstallation,
+      stage: state.project.stage || undefined,
+    },
+    design: {
+      family: state.design.family || "not_sure",
+      system: state.design.system,
+    },
     site: {
       substrate: state.site.substrate,
       locations: state.site.locations.map((location) => {

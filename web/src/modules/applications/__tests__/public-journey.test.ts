@@ -5,10 +5,12 @@ import {
   buildSubmissionPayload,
   contentTypeForUpload,
   createDraftSession,
+  initialJourneyState,
   saveForLaterError,
   sendDraftResumeLink,
   type JourneyState,
 } from "../public-journey";
+import { submissionPayloadSchema } from "../schemas";
 
 const completeState: JourneyState = {
   need: "ps1",
@@ -36,6 +38,36 @@ const completeState: JourneyState = {
 };
 
 describe("public application journey", () => {
+  it("starts optional project answers empty and explicit uncertainty answers selected", () => {
+    expect(initialJourneyState.project.estimatedInstallation).toBe("not_sure");
+    expect(initialJourneyState.project.stage).toBe("");
+    expect(initialJourneyState.applicant.role).toBe("");
+    expect(initialJourneyState.design.family).toBe("");
+    expect(initialJourneyState.site.substrate).toBe("not_sure");
+    expect(initialJourneyState.site.locations).toEqual([]);
+  });
+
+  it("accepts a quick submission with mandatory contact and address details", () => {
+    const quickState: JourneyState = {
+      ...completeState,
+      applicant: { ...completeState.applicant, role: "" },
+      project: {
+        ...completeState.project,
+        estimatedInstallation: "not_sure",
+        stage: "",
+      },
+      design: { family: "not_sure", system: "not-sure" },
+      site: { substrate: "not_sure", locations: [] },
+      acknowledgement: true,
+    };
+
+    const payload = buildSubmissionPayload(quickState);
+    expect(submissionPayloadSchema.safeParse(payload).success).toBe(true);
+    expect(payload.applicant.role).toBeUndefined();
+    expect(payload.project.stage).toBeUndefined();
+    expect(payload.site.locations).toEqual([]);
+  });
+
   it("maps the visible journey to the backend draft and submission contracts", () => {
     expect(buildDraftPayload(completeState)).toEqual({
       need: "ps1",
