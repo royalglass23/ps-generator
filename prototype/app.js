@@ -19,7 +19,7 @@
     need: 'ps1',
     role: 'architect',
     name: '', email: '', mobile: '',
-    address: '', city: '', postalCode: '', bc: '', resourceConsent: '', estimatedInstallation: 'asap', stage: 'preparing_consent',
+    address: '', bc: '', resourceConsent: '', estimatedInstallation: 'asap', stage: 'preparing_consent',
     designFamily: 'balustrade', design: '',
     substrate: 'timber',
     locations: [{ types: [], other: '', environment: '' }],
@@ -134,8 +134,8 @@
 
   function projectStep() {
     return `<div class="field-grid">
-      <div class="field full"><label for="field-address">Project address *</label><input id="field-address" data-field="address" type="text" value="${escapeHtml(state.address)}" placeholder="Start typing the project address" list="project-address-suggestions" aria-describedby="address-search-hint" autocomplete="street-address" required aria-required="true" /><datalist id="project-address-suggestions"><option value="28 Example Street, Auckland 1010"></option><option value="15 Queen Street, Auckland 1010"></option></datalist><span class="field-hint" id="address-search-hint">Select an address from the Google suggestions to automatically fill City and Postal code.</span></div>
-      ${field('City','city','text','Auto-filled from address')}${field('Postal code','postalCode','text','Auto-filled from address')}${field('Building Consent number','bc','text','If available')}${field('Resource Consent number','resourceConsent','text','If applicable')}
+      <div class="field full"><label for="field-address">Project address *</label><input id="field-address" data-field="address" type="text" value="${escapeHtml(state.address)}" placeholder="Start typing the project address" list="project-address-suggestions" aria-describedby="address-search-hint" autocomplete="street-address" required aria-required="true" /><datalist id="project-address-suggestions"><option value="28 Example Street, Auckland 1010"></option><option value="15 Queen Street, Auckland 1010"></option></datalist><span class="field-hint" id="address-search-hint">Select the full job address from the suggestions.</span></div>
+      ${field('Building Consent number','bc','text','If available')}${field('Resource Consent number','resourceConsent','text','If applicable')}
       ${selectField('Estimated installation date','estimatedInstallation',[
         ['asap','ASAP'],['3_months','3 months'],['6_months','6 months'],['1_year','1 year'],['2_years','2 years']
       ],true)}
@@ -354,7 +354,7 @@
       <h2>PS1 Application Summary</h2>
       <p class="application-summary-intro">Application received for Royal Glass review.</p>
       <section><h3>Applicant</h3>${line('Full name',state.name || 'Not entered')}${line('Mobile',state.mobile || 'Not entered')}${line('Email',state.email || 'Not entered')}${line('Role',roleLabel())}</section>
-      <section><h3>Project</h3>${line('Project address',state.address || 'Not entered')}${line('City',state.city || 'Not entered')}${line('Postal code',state.postalCode || 'Not entered')}${line('Building Consent number',state.bc || 'Not provided')}${line('Resource Consent number',state.resourceConsent || 'Not provided')}${line('Project stage',stageLabel())}${line('Estimated installation',installationDateLabel())}</section>
+      <section><h3>Project</h3>${line('Project address',state.address || 'Not entered')}${line('Building Consent number',state.bc || 'Not provided')}${line('Resource Consent number',state.resourceConsent || 'Not provided')}${line('Project stage',stageLabel())}${line('Estimated installation',installationDateLabel())}</section>
       <section><h3>System & Site Conditions</h3>${line('Barrier type',designFamilyLabel())}${line('Royal Glass system',designLabel())}${line('Fixing substrate',substrateLabel())}<h4>Areas</h4>${areas}</section>
       <section><h3>Documents & Images</h3>${files}</section>
       <section><h3>Request</h3><strong class="summary-answer">${escapeHtml(initialNeedLabel())}</strong><p class="summary-route">${escapeHtml(pathway().title)}</p></section>
@@ -511,18 +511,6 @@
     const key = event.target.dataset.field;
     if (!key) return;
     state[key] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
-    if (key === 'address') {
-      const addressDetails = {
-        '28 Example Street, Auckland 1010': { city: 'Auckland', postalCode: '1010' },
-        '15 Queen Street, Auckland 1010': { city: 'Auckland', postalCode: '1010' },
-      }[event.target.value];
-      if (addressDetails) {
-        state.city = addressDetails.city;
-        state.postalCode = addressDetails.postalCode;
-        state.draftTouched = true;
-        return render();
-      }
-    }
     state.draftTouched = true;
     const draft = root.querySelector('#draft-status');
     if (draft) draft.textContent = draftStatus();

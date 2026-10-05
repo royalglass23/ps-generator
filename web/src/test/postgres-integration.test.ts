@@ -76,8 +76,6 @@ describe("PostgreSQL adapters", () => {
         },
         project: {
           address: "28 Example Street",
-          city: "Auckland",
-          postalCode: "1010",
           buildingConsentNumber: "",
           resourceConsentNumber: "",
           estimatedInstallation: "3_months",
@@ -174,8 +172,6 @@ describe("PostgreSQL adapters", () => {
         },
         project: {
           address: "28 Example Street",
-          city: "Auckland",
-          postalCode: "1010",
           buildingConsentNumber: "",
           resourceConsentNumber: "",
           estimatedInstallation: "3_months",

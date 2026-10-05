@@ -1,4 +1,8 @@
-import type { DraftPayload, SubmissionPayload } from "./schemas";
+import {
+  applicationInputError,
+  type DraftPayload,
+  type SubmissionPayload,
+} from "./schemas";
 
 export interface JourneyState {
   need: NonNullable<DraftPayload["need"]>;
@@ -10,8 +14,6 @@ export interface JourneyState {
   };
   project: {
     address: string;
-    city: string;
-    postalCode: string;
     buildingConsentNumber: string;
     resourceConsentNumber: string;
     estimatedInstallation: NonNullable<NonNullable<DraftPayload["project"]>["estimatedInstallation"]>;
@@ -19,12 +21,12 @@ export interface JourneyState {
   };
   design: {
     family: NonNullable<NonNullable<DraftPayload["design"]>["family"]> | "";
-    system: string;
+    system: NonNullable<NonNullable<DraftPayload["design"]>["system"]>;
   };
   site: {
     substrate: NonNullable<NonNullable<DraftPayload["site"]>["substrate"]>;
     locations: Array<{
-      types: string[];
+      types: NonNullable<NonNullable<NonNullable<DraftPayload["site"]>["locations"]>[number]["types"]>;
       environment: "internal" | "external" | "";
       other: string;
     }>;
@@ -58,8 +60,6 @@ export const initialJourneyState: JourneyState = {
   applicant: { name: "", mobile: "", email: "", role: "" },
   project: {
     address: "",
-    city: "",
-    postalCode: "",
     buildingConsentNumber: "",
     resourceConsentNumber: "",
     estimatedInstallation: "not_sure",
@@ -73,18 +73,36 @@ export const initialJourneyState: JourneyState = {
   acknowledgement: false,
 };
 
-export function saveForLaterError(state: JourneyState): string | null {
+export function applicantDetailsError(state: JourneyState): string | null {
   const { name, mobile, email } = state.applicant;
-  if (name.trim() && mobile.trim() && /^\S+@\S+\.\S+$/.test(email.trim())) return null;
-  return "Enter your full name, mobile number, and a valid email address before saving for later.";
+  if (!name.trim() || !mobile.trim() || !email.trim()) {
+    return "Enter your full name, NZ phone number, and email address.";
+  }
+  return applicationInputError("name", name)
+    ?? applicationInputError("mobile", mobile)
+    ?? applicationInputError("email", email);
 }
 
 export function buildDraftPayload(state: JourneyState): DraftPayload {
   return {
     need: state.need,
-    applicant: { ...state.applicant, role: state.applicant.role || undefined },
-    project: { ...state.project, stage: state.project.stage || undefined },
-    design: { ...state.design, family: state.design.family || undefined },
+    applicant: {
+      name: state.applicant.name,
+      mobile: state.applicant.mobile,
+      email: state.applicant.email,
+      role: state.applicant.role || undefined,
+    },
+    project: {
+      address: state.project.address,
+      buildingConsentNumber: state.project.buildingConsentNumber,
+      resourceConsentNumber: state.project.resourceConsentNumber,
+      estimatedInstallation: state.project.estimatedInstallation,
+      stage: state.project.stage || undefined,
+    },
+    design: {
+      family: state.design.family || undefined,
+      system: state.design.system,
+    },
     site: {
       substrate: state.site.substrate,
       locations: state.site.locations.map((location) => ({
@@ -115,8 +133,6 @@ export function buildSubmissionPayload(state: JourneyState): SubmissionPayload {
     },
     project: {
       address: state.project.address,
-      city: state.project.city,
-      postalCode: state.project.postalCode,
       buildingConsentNumber: state.project.buildingConsentNumber,
       resourceConsentNumber: state.project.resourceConsentNumber,
       estimatedInstallation: state.project.estimatedInstallation,
@@ -212,9 +228,23 @@ export async function loadDraft(
   const payload = result.payload;
   return {
     need: payload.need ?? initialJourneyState.need,
-    applicant: { ...initialJourneyState.applicant, ...payload.applicant },
-    project: { ...initialJourneyState.project, ...payload.project },
-    design: { ...initialJourneyState.design, ...payload.design },
+    applicant: {
+      name: payload.applicant?.name ?? "",
+      mobile: payload.applicant?.mobile ?? "",
+      email: payload.applicant?.email ?? "",
+      role: payload.applicant?.role ?? "",
+    },
+    project: {
+      address: payload.project?.address ?? "",
+      buildingConsentNumber: payload.project?.buildingConsentNumber ?? "",
+      resourceConsentNumber: payload.project?.resourceConsentNumber ?? "",
+      estimatedInstallation: payload.project?.estimatedInstallation ?? "not_sure",
+      stage: payload.project?.stage ?? "",
+    },
+    design: {
+      family: payload.design?.family ?? initialJourneyState.design.family,
+      system: payload.design?.system ?? "",
+    },
     site: {
       substrate: payload.site?.substrate ?? initialJourneyState.site.substrate,
       locations: (payload.site?.locations?.length

@@ -13,8 +13,6 @@ const validSubmission = {
   },
   project: {
     address: "28 Example Street, Auckland 1010",
-    city: "Auckland",
-    postalCode: "1010",
     buildingConsentNumber: "",
     resourceConsentNumber: "",
     estimatedInstallation: "3_months" as const,
@@ -182,7 +180,8 @@ describe("ApplicationService", () => {
     await service.submit(created.id, created.resumeToken, validSubmission);
 
     for (const message of repository.outbox) {
-      expect(message.text).toContain("City: Auckland");
+      expect(message.text).not.toContain("City:");
+      expect(message.text).not.toContain("Postal code:");
       expect(message.text).toContain("Role: Homeowner");
       expect(message.text).toContain("Estimated installation: Within 3 months");
       expect(message.text).toContain("Project stage: Preparing Building Consent");
@@ -245,6 +244,21 @@ describe("ApplicationService", () => {
         project: { ...validSubmission.project, address: "" },
       }),
     ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("rejects invalid contact and tampered choice values before persistence", async () => {
+    const { repository, service } = setup();
+    const created = await service.createDraft();
+
+    await expect(
+      service.submit(created.id, created.resumeToken, {
+        ...validSubmission,
+        applicant: { ...validSubmission.applicant, mobile: "+61 2 5550 1010" },
+        design: { ...validSubmission.design, system: "invented-system" },
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+    expect(repository.outbox).toHaveLength(0);
+    expect(repository.applications.get(created.id)?.status).toBe("draft");
   });
 
   it("accepts additional information only for the matching open staff request", async () => {

@@ -3,16 +3,15 @@
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   createDraftSession,
   initialJourneyState,
   loadDraft,
   removeApplicationUpload,
-  saveForLaterError,
+  applicantDetailsError,
   saveDraft,
-  sendDraftResumeLink,
   submitApplication,
   uploadApplicationFile,
   type DraftSession,
@@ -20,7 +19,12 @@ import {
   type UploadedFile,
 } from "@/modules/applications/public-journey";
 import { nextLocationTypes } from "@/modules/applications/location-types";
-import { DraftSavedNotice } from "./draft-saved-notice";
+import {
+  applicationInputError,
+  applicationInputLimits,
+  type ApplicationInputName,
+  type LocationType,
+} from "@/modules/applications/schemas";
 import { persistSubmissionReceipt } from "./submission-receipt";
 
 declare global {
@@ -95,26 +99,39 @@ function cloneInitialState(): JourneyState {
 
 function stepIsValid(state: JourneyState, step: number): boolean {
   if (step === 0) return Boolean(state.need);
-  if (step === 1) return Boolean(state.project.address.trim());
+  if (step === 1) return !applicationInputError("address", state.project.address)
+    && !applicationInputError("buildingConsentNumber", state.project.buildingConsentNumber)
+    && !applicationInputError("resourceConsentNumber", state.project.resourceConsentNumber);
   if (step === 2) return Boolean(state.design.family && state.design.system);
   if (step === 3) return Boolean(state.site.substrate) && state.site.locations.every((location) =>
-    location.types.length > 0 && location.environment && (!location.types.includes("other") || location.other.trim()),
+    location.types.length > 0 && location.environment
+      && (!location.types.includes("other") || !applicationInputError("otherLocation", location.other)),
   );
-  if (step === 5) return saveForLaterError(state) === null && Boolean(state.applicant.role);
+  if (step === 5) return applicantDetailsError(state) === null && Boolean(state.applicant.role);
   return true;
 }
 
-function Field({ label, value, onChange, type = "text", required = false, placeholder = "", autoComplete }: {
-  label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; placeholder?: string; autoComplete?: string;
+export function Field({ label, value, onChange, validationName, type = "text", required = false, placeholder = "", autoComplete, maxLength, inputMode }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  validationName: ApplicationInputName;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+  autoComplete?: string;
+  maxLength?: number;
+  inputMode?: "email" | "search" | "tel" | "text" | "url" | "none" | "numeric" | "decimal";
 }) {
-  return <label className="field"><span>{label}{required ? " *" : ""}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} autoComplete={autoComplete} /></label>;
+  const [touchedName, setTouchedName] = useState<ApplicationInputName | null>(null);
+  const error = touchedName === validationName ? applicationInputError(validationName, value) : null;
+  const errorId = useId();
+  return <label className={`field ${error ? "field-invalid" : ""}`}><span>{label}{required ? " *" : ""}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} onBlur={() => setTouchedName(validationName)} placeholder={placeholder} required={required} autoComplete={autoComplete} maxLength={maxLength} inputMode={inputMode} aria-invalid={error ? "true" : "false"} aria-describedby={error ? errorId : undefined} />{error ? <small id={errorId} className="field-warning" role="alert">{error}</small> : null}</label>;
 }
 
-type AddressValue = { address: string; city: string; postalCode: string };
-type GoogleAddressComponent = { longText?: string; types?: string[] };
+type AddressValue = { address: string };
 type GooglePlace = {
   formattedAddress?: string;
-  addressComponents?: GoogleAddressComponent[];
   fetchFields: (options: { fields: string[] }) => Promise<void>;
 };
 type GoogleAutocompleteElement = HTMLElement & { value?: string };
@@ -129,6 +146,9 @@ function JobAddressField({ value, googleReady, googleEnabled, onChange }: {
   const onChangeRef = useRef(onChange);
   const [manual, setManual] = useState(!googleEnabled);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const errorId = useId();
+  const error = touched ? applicationInputError("address", value) : null;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -155,14 +175,8 @@ function JobAddressField({ value, googleReady, googleEnabled, onChange }: {
         const selection = event as Event & { placePrediction?: { toPlace: () => GooglePlace } };
         const place = selection.placePrediction?.toPlace();
         if (!place) return;
-        void place.fetchFields({ fields: ["formattedAddress", "addressComponents"] }).then(() => {
-          const components = place.addressComponents ?? [];
-          const component = (...types: string[]) => components.find((item) => item.types?.some((type) => types.includes(type)))?.longText ?? "";
-          onChangeRef.current({
-            address: place.formattedAddress ?? "",
-            city: component("locality", "postal_town", "sublocality_level_1"),
-            postalCode: component("postal_code"),
-          });
+        void place.fetchFields({ fields: ["formattedAddress"] }).then(() => {
+          onChangeRef.current({ address: place.formattedAddress ?? "" });
         });
       }) as EventListener);
       container.current.replaceChildren(autocomplete);
@@ -180,10 +194,10 @@ function JobAddressField({ value, googleReady, googleEnabled, onChange }: {
   }, [googleEnabled, googleReady, manual, value]);
 
   if (manual) {
-    return <div className="address-field"><Field label="Job address" required value={value} onChange={(address) => onChange({ address, city: "", postalCode: "" })} placeholder="Street address" autoComplete="street-address" />{loadFailed ? <p className="field-hint">Address suggestions are unavailable. You can still enter the address manually.</p> : null}</div>;
+    return <div className="address-field"><Field label="Job address" required value={value} validationName="address" maxLength={applicationInputLimits.address} onChange={(address) => onChange({ address })} placeholder="Street address" autoComplete="street-address" />{loadFailed ? <p className="field-hint">Address suggestions are unavailable. You can still enter the address manually.</p> : null}</div>;
   }
 
-  return <div className="field full address-field"><span>Job address *</span><div ref={container} className="google-address-host">{!googleReady ? <span className="field-loading">Loading address suggestions…</span> : null}</div><button type="button" className="text-action" onClick={() => setManual(true)}>Enter address manually</button></div>;
+  return <div className={`field full address-field ${error ? "field-invalid" : ""}`} onBlurCapture={() => setTouched(true)}><span>Job address *</span><div ref={container} className="google-address-host" aria-invalid={error ? "true" : "false"} aria-describedby={error ? errorId : undefined}>{!googleReady ? <span className="field-loading">Loading address suggestions…</span> : null}</div>{error ? <small id={errorId} className="field-warning" role="alert">{error}</small> : null}<button type="button" className="text-action" onClick={() => setManual(true)}>Enter address manually</button></div>;
 }
 
 function CheckIcon({ className = "" }: { className?: string }) {
@@ -208,7 +222,7 @@ export function LocationAreaFields({ index, location, onChange, onToggle }: {
   index: number;
   location: SiteLocation;
   onChange: (value: Partial<SiteLocation>) => void;
-  onToggle: (type: string) => void;
+  onToggle: (type: LocationType) => void;
 }) {
   return <div className="area-fields">
     <div className="radio-row area-environment">
@@ -222,7 +236,7 @@ export function LocationAreaFields({ index, location, onChange, onToggle }: {
         {locationOptions.map(([value, label]) => <label key={value}><input type="checkbox" checked={location.types.includes(value)} onChange={() => onToggle(value)} /><span>{label}</span></label>)}
       </div>
     </details>
-    {location.types.includes("other") ? <Field label="Describe other location" required value={location.other} onChange={(other) => onChange({ other })} /> : null}
+    {location.types.includes("other") ? <Field label="Describe other location" required value={location.other} validationName="otherLocation" maxLength={applicationInputLimits.otherLocation} onChange={(other) => onChange({ other })} /> : null}
   </div>;
 }
 
@@ -303,20 +317,16 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   const [googleMapsReady, setGoogleMapsReady] = useState(false);
   const [googleMapsFailed, setGoogleMapsFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [savingForLater, setSavingForLater] = useState(false);
   const [status, setStatus] = useState("");
-  const [savedReceipt, setSavedReceipt] = useState<{ resumeUrl: string; email: string; emailed?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState<{ reference: string; submittedAt: string } | null>(null);
   const turnstileContainer = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const sessionPromise = useRef<Promise<DraftSession> | null>(null);
   const sessionRef = useRef<DraftSession | null>(null);
-  const savingForLaterRef = useRef(false);
   const uploadItemsRef = useRef<UploadItem[]>([]);
   const activeUploads = useRef(0);
   const removedUploadItems = useRef(new Set<string>());
-  const uploadWaiters = useRef<Array<() => void>>([]);
   const nextUploadItemId = useRef(0);
 
   useEffect(() => {
@@ -394,12 +404,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     ));
   }
 
-  function finishUploadWork() {
-    if (uploadItemsRef.current.some((item) => item.status === "preparing" || item.status === "uploading" || item.status === "removing")) return;
-    const waiters = uploadWaiters.current.splice(0);
-    waiters.forEach((resolve) => resolve());
-  }
-
   async function runUpload(item: UploadItem) {
     let uploaded: UploadedFile;
     try {
@@ -414,7 +418,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       }
       activeUploads.current -= 1;
       pumpUploads();
-      finishUploadWork();
       return;
     }
 
@@ -432,7 +435,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     }
     activeUploads.current -= 1;
     pumpUploads();
-    finishUploadWork();
   }
 
   function pumpUploads() {
@@ -443,11 +445,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       activeUploads.current += 1;
       void runUpload(item);
     }
-  }
-
-  async function waitForUploads() {
-    if (!uploadItemsRef.current.some((item) => item.status === "preparing" || item.status === "uploading" || item.status === "removing")) return;
-    await new Promise<void>((resolve) => uploadWaiters.current.push(resolve));
   }
 
   async function persist(message: string): Promise<DraftSession | null> {
@@ -472,40 +469,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     setError("");
     setStep((current) => Math.min(current + 1, stepLabels.length - 1));
     setFurthestStep((current) => Math.max(current, step + 1));
-  }
-
-  async function saveForLater() {
-    if (savingForLaterRef.current) return;
-    const contactError = saveForLaterError(state);
-    if (contactError) {
-      setStatus("");
-      setError(contactError);
-      setStep(stepLabels.length - 1);
-      return;
-    }
-    savingForLaterRef.current = true;
-    setSavingForLater(true);
-    let activeSession: DraftSession | null = null;
-    try {
-      activeSession = await persist("Draft saved");
-      if (!activeSession) return;
-      await waitForUploads();
-      if (uploadItemsRef.current.some((item) => item.status === "failed")) {
-        throw new Error("Retry or remove failed files before saving for later.");
-      }
-      const receipt = await sendDraftResumeLink(activeSession);
-      setSavedReceipt(receipt);
-      setStatus("");
-    } catch (reason) {
-      if (activeSession) {
-        setSavedReceipt({ resumeUrl: activeSession.resumeUrl, email: state.applicant.email, emailed: false });
-        setStatus("Draft saved. The email could not be sent yet, so keep the link below.");
-      }
-      setError(reason instanceof Error ? reason.message : "The resume email could not be sent.");
-    } finally {
-      savingForLaterRef.current = false;
-      setSavingForLater(false);
-    }
   }
 
   function addFiles(selected: FileList | null) {
@@ -547,8 +510,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     } catch (reason) {
       updateUploadItem(item.clientId, { status: "uploaded" });
       setError(reason instanceof Error ? reason.message : "The file could not be removed. Try again.");
-    } finally {
-      finishUploadWork();
     }
   }
 
@@ -580,13 +541,13 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   function projectStep() {
     const project = state.project;
     const update = (value: Partial<JourneyState["project"]>) => patch("project", { ...project, ...value });
-    return <><h3>Tell us about the project</h3><JobAddressField value={project.address} googleReady={googleMapsReady && !googleMapsFailed} googleEnabled={Boolean(googleMapsApiKey) && !googleMapsFailed} onChange={({ address, city, postalCode }) => update({ address, city, postalCode })} /><div className="field-grid project-fields"><Field label="Building Consent number (BC)" value={project.buildingConsentNumber} onChange={(buildingConsentNumber) => update({ buildingConsentNumber })} placeholder="If available" /><Field label="Resource Consent number (RC)" value={project.resourceConsentNumber} onChange={(resourceConsentNumber) => update({ resourceConsentNumber })} placeholder="If applicable" />
+    return <><h3>Tell us about the project</h3><JobAddressField value={project.address} googleReady={googleMapsReady && !googleMapsFailed} googleEnabled={Boolean(googleMapsApiKey) && !googleMapsFailed} onChange={({ address }) => update({ address })} /><div className="field-grid project-fields"><Field label="Building Consent number (BC)" value={project.buildingConsentNumber} validationName="buildingConsentNumber" maxLength={applicationInputLimits.consentNumber} onChange={(buildingConsentNumber) => update({ buildingConsentNumber })} placeholder="If available" /><Field label="Resource Consent number (RC)" value={project.resourceConsentNumber} validationName="resourceConsentNumber" maxLength={applicationInputLimits.consentNumber} onChange={(resourceConsentNumber) => update({ resourceConsentNumber })} placeholder="If applicable" />
       <label className="field"><span>Estimated installation date</span><select value={project.estimatedInstallation} onChange={(event) => update({ estimatedInstallation: event.target.value as JourneyState["project"]["estimatedInstallation"] })}><option value="not_sure">Not sure</option><option value="asap">ASAP</option><option value="3_months">Within 3 months</option><option value="6_months">Within 6 months</option><option value="1_year">Within 1 year</option><option value="2_years">Within 2 years</option></select></label>
       <label className="field"><span>What stage is the project at? <small>Optional</small></span><select value={project.stage} onChange={(event) => update({ stage: event.target.value as JourneyState["project"]["stage"] })}><option value="">Select if known</option><option value="concept">Concept / Early Design</option><option value="developed">Developed Design</option><option value="preparing_consent">Preparing Building Consent</option><option value="consent_lodged">Building Consent lodged</option><option value="council_rfi">Council RFI received</option><option value="consent_approved">Building Consent approved</option><option value="construction">Construction underway</option><option value="existing">Existing building / alteration</option><option value="other">Other</option></select></label></div></>;
   }
 
   function designStep() {
-    return <><h3>Is this a glass balustrade or pool fence?</h3><div className="image-grid design-family-grid"><Choice selected={state.design.family === "balustrade"} title="Glass balustrade" description="Decks, balconies, stairs, landings and other barriers." image="/assets/fix-spigots.jpg" onClick={() => patch("design", { family: "balustrade", system: "" })} /><Choice selected={state.design.family === "pool"} title="Pool fence" description="Glass fencing around a swimming pool." image="/assets/use-pool.jpg" onClick={() => patch("design", { family: "pool", system: "" })} /><Choice selected={state.design.family === "not_sure"} title="Not sure" description="Royal Glass can identify the right project type." onClick={() => patch("design", { family: "not_sure", system: "not-sure" })} /></div><label className="field full"><span>Royal Glass system *</span><select value={state.design.system} onChange={(event) => patch("design", { ...state.design, system: event.target.value })}><option value="">Select a system</option>{systems.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SystemReferenceCard system={state.design.system} />{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the documents section if you have one.</div> : null}</>;
+    return <><h3>Is this a glass balustrade or pool fence?</h3><div className="image-grid design-family-grid"><Choice selected={state.design.family === "balustrade"} title="Glass balustrade" description="Decks, balconies, stairs, landings and other barriers." image="/assets/fix-spigots.jpg" onClick={() => patch("design", { family: "balustrade", system: "" })} /><Choice selected={state.design.family === "pool"} title="Pool fence" description="Glass fencing around a swimming pool." image="/assets/use-pool.jpg" onClick={() => patch("design", { family: "pool", system: "" })} /><Choice selected={state.design.family === "not_sure"} title="Not sure" description="Royal Glass can identify the right project type." onClick={() => patch("design", { family: "not_sure", system: "not-sure" })} /></div><label className="field full"><span>Royal Glass system *</span><select value={state.design.system} onChange={(event) => patch("design", { ...state.design, system: event.target.value as JourneyState["design"]["system"] })}><option value="">Select a system</option>{systems.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SystemReferenceCard system={state.design.system} />{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the documents section if you have one.</div> : null}</>;
   }
 
   function siteStep() {
@@ -595,7 +556,7 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       const locations = state.site.locations.map((location, current) => current === index ? { ...location, ...value } : location);
       patch("site", { ...state.site, locations });
     }
-    function toggleLocation(index: number, type: string) {
+    function toggleLocation(index: number, type: LocationType) {
       const location = state.site.locations[index];
       if (type === "pool-area" && !location.types.includes(type)) { patch("site", { ...state.site, locations: [{ ...location, types: [type], other: "" }] }); return; }
       const types = nextLocationTypes(location.types, type);
@@ -608,11 +569,11 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   function documentsStep() {
     const fileCount = uploadItems.length;
     const uploadEnabled = Boolean(session || turnstileToken);
-    return <><p className="section-intro">Add anything you already have. This section is optional.</p>{!session ? <div className="security-box"><strong>Security check</strong><p>Complete this quick check before selecting files. It protects uploads from automated abuse.</p>{turnstileToken ? <p className="security-complete"><CheckIcon /> Security check complete</p> : siteKey ? <div ref={turnstileContainer} /> : <p className="error-text">Security check configuration is required before files can upload.</p>}</div> : null}<label className={`upload-zone ${fileCount >= 5 || !uploadEnabled ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || fileCount >= 5 || !uploadEnabled} onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} /><strong>{fileCount >= 5 ? "Maximum of 5 files reached" : uploadEnabled ? "Select drawings, documents or photos" : "Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{uploadItems.map((item) => <div key={item.clientId}><span><strong>{item.file.name}</strong><small>{Math.ceil(item.file.size / 1024)} KB</small></span><span className="file-actions">{item.status === "failed" ? <button type="button" className="text-button upload-retry" onClick={() => retryUpload(item.clientId)}>Upload failed — Retry</button> : <b className={`upload-status ${item.status}`}>{item.status === "preparing" ? "Ready/preparing" : item.status === "uploading" ? "Uploading…" : item.status === "uploaded" ? "Uploaded" : "Removing…"}</b>}<button type="button" className="text-button" onClick={() => void removeUpload(item)} aria-label={`Remove ${item.file.name}`}>Remove</button></span></div>)}</div><div className="notice">Don’t have everything yet? Continue without uploading. Royal Glass will contact you if anything else is needed.</div></>;
+    return <><p className="section-intro">Add anything you already have. This section is optional.</p>{!session ? <div className="security-box"><strong>Security check</strong><p>Complete this quick check before selecting files. It protects uploads from automated abuse.</p>{turnstileToken ? <p className="security-complete"><CheckIcon /> Security check complete</p> : siteKey ? <div ref={turnstileContainer} /> : <p className="error-text">Security check configuration is required before files can upload.</p>}</div> : null}<label className={`upload-zone ${fileCount >= 5 || !uploadEnabled ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || fileCount >= 5 || !uploadEnabled} onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} /><strong>{fileCount >= 5 ? "Maximum of 5 files reached" : uploadEnabled ? "Select drawings, documents or photos" : "Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{uploadItems.map((item) => <div key={item.clientId}><span><strong>{item.file.name}</strong><small>{Math.ceil(item.file.size / 1024)} KB</small></span><span className="file-actions">{item.status === "failed" ? <button type="button" className="text-button upload-retry" onClick={() => retryUpload(item.clientId)}>Upload failed — Retry</button> : <b className={`upload-status ${item.status}`}>{item.status === "preparing" ? "Ready/preparing" : item.status === "uploading" ? "Uploading…" : item.status === "uploaded" ? "Uploaded" : "Removing…"}</b>}<button type="button" className="text-button" onClick={() => void removeUpload(item)} aria-label={`Remove ${item.file.name}`}>Remove</button></span></div>)}</div><div className="notice">Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.</div></>;
   }
 
   function applicantStep() {
-    return <><h3>Your contact details</h3><p className="section-intro">We need these details so our team can review the project and contact you.</p><div className="field-grid"><Field label="Full name" value={state.applicant.name} required autoComplete="name" onChange={(name) => patch("applicant", { ...state.applicant, name })} /><Field label="Mobile" type="tel" value={state.applicant.mobile} required autoComplete="tel" onChange={(mobile) => patch("applicant", { ...state.applicant, mobile })} /><Field label="Email" type="email" value={state.applicant.email} required autoComplete="email" onChange={(email) => patch("applicant", { ...state.applicant, email })} /><label className="field"><span>Role *</span><select required value={state.applicant.role} onChange={(event) => patch("applicant", { ...state.applicant, role: event.target.value as JourneyState["applicant"]["role"] })}><option value="">Select your role</option><option value="architect">Architect / Designer</option><option value="builder">Builder</option><option value="developer">Developer</option><option value="homeowner">Homeowner</option><option value="other">Other</option></select></label></div>
+    return <><h3>Your contact details</h3><p className="section-intro">We need these details so our team can review the project and contact you.</p><div className="field-grid"><Field label="Full name" value={state.applicant.name} validationName="name" maxLength={applicationInputLimits.name} required autoComplete="name" onChange={(name) => patch("applicant", { ...state.applicant, name })} /><Field label="NZ mobile or landline" type="tel" value={state.applicant.mobile} validationName="mobile" maxLength={applicationInputLimits.mobile} inputMode="tel" required autoComplete="tel" onChange={(mobile) => patch("applicant", { ...state.applicant, mobile })} /><Field label="Email" type="email" value={state.applicant.email} validationName="email" maxLength={applicationInputLimits.email} inputMode="email" required autoComplete="email" onChange={(email) => patch("applicant", { ...state.applicant, email })} /><label className="field"><span>Role *</span><select required value={state.applicant.role} onChange={(event) => patch("applicant", { ...state.applicant, role: event.target.value as JourneyState["applicant"]["role"] })}><option value="">Select your role</option><option value="architect">Architect / Designer</option><option value="builder">Builder</option><option value="developer">Developer</option><option value="homeowner">Homeowner</option><option value="other">Other</option></select></label></div>
       {!session ? <div className="security-box"><strong>Security check</strong><p>Complete this quick check before submitting. It protects the form from automated spam.</p>{turnstileToken ? <p className="security-complete"><CheckIcon /> Security check complete</p> : siteKey ? <div ref={turnstileContainer} /> : <p className="error-text">Security check configuration is required before this form can submit.</p>}</div> : null}
       <label className="confirm"><input type="checkbox" checked={state.acknowledgement} onChange={(event) => patch("acknowledgement", event.target.checked)} /><span>I confirm the information is accurate to the best of my knowledge and may be submitted to Royal Glass for review.</span></label><div className="notice amber"><strong>What happens next</strong><p>Royal Glass reviews the project information and contacts you if anything else is needed. Submission does not automatically confirm that a PS1 will be issued.</p></div></>;
   }
@@ -664,10 +625,8 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
             {content}
             {error ? <div className="form-error" role="alert">{error}</div> : null}
             {status ? <div className="form-status" role="status">{status}</div> : null}
-            {savedReceipt ? <DraftSavedNotice {...savedReceipt} /> : null}
             <div className="form-actions">
               <button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button>
-              <button type="button" className="button ghost" disabled={busy || savingForLater} onClick={() => void saveForLater()}>{busy || savingForLater ? "Saving…" : "Save for later"}</button>
               {step < stepLabels.length - 1 ? <button type="button" className="button primary" disabled={busy || !stepIsValid(state, step)} onClick={() => void continueForward()}>{busy ? "Saving…" : "Continue"}</button> : <button type="button" className="button primary" disabled={busy || uploadActive || !allRequiredValid || !state.acknowledgement} onClick={() => void submit()}>{busy ? "Submitting…" : "Submit application"}</button>}
             </div>
           </section>

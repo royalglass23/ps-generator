@@ -112,6 +112,8 @@
 .rg-ps1 .field input, .rg-ps1 .field select { width: 100%; min-height: 3rem; padding: .72rem .8rem; border: 1px solid var(--rg-line-strong); border-radius: 3px; background: var(--rg-white); color: var(--rg-ink); caret-color: var(--rg-teal); }
 .rg-ps1 .field input:hover, .rg-ps1 .field select:hover { border-color: #8aa3a6; }
 .rg-ps1 .field input::placeholder { color: #747b80; }
+.rg-ps1 .field-invalid input { border-color: var(--rg-danger); background: var(--rg-danger-pale); }
+.rg-ps1 .field-warning { color: var(--rg-danger); font-size: .76rem; font-weight: 600; line-height: 1.4; }
 .rg-ps1 .project-fields { margin-top: 1rem; }
 .rg-ps1 .address-field { grid-column: 1 / -1; }
 .rg-ps1 .google-address-host { min-height: 3rem; display: grid; align-items: center; }
