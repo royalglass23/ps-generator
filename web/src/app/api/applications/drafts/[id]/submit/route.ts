@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { bearerToken, errorResponse, unauthorizedResponse } from "@/lib/http";
 import { getApplicationService } from "@/modules/applications/runtime";
-import { persistWithImmediateEmailDispatch } from "@/modules/email/runtime";
+import { dispatchEmailOutboxSafely } from "@/modules/email/runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +17,8 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const payload: unknown = await request.json();
-    const application = await persistWithImmediateEmailDispatch(() =>
-      getApplicationService().submit(id, token, payload),
-    );
+    const application = await getApplicationService().submit(id, token, payload);
+    after(dispatchEmailOutboxSafely);
     return NextResponse.json({
       id: application.id,
       status: application.status,

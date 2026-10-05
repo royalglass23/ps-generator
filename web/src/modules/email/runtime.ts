@@ -17,6 +17,14 @@ export function getEmailOutboxDispatcher(): OutboxDispatcher {
   return outboxDispatcher;
 }
 
+export async function dispatchEmailOutboxSafely(): Promise<void> {
+  try {
+    await getEmailOutboxDispatcher().run();
+  } catch (error) {
+    console.error("Asynchronous email delivery failed; queued messages remain available for retry.", error);
+  }
+}
+
 export function persistWithImmediateEmailDispatch<T>(persist: () => Promise<T>): Promise<T> {
   return persistAndDispatchOutbox({
     persist,
