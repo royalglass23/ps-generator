@@ -176,6 +176,10 @@ export class ApplicationService {
     const now = this.now();
     const reference = this.createReference(id, now);
     const email = this.getEmail();
+    const applicationBaseUrl = this.applicationBaseUrl;
+    if (!applicationBaseUrl) {
+      throw new Error("Application base URL is not configured.");
+    }
     return this.repository.submit({
       id,
       payload: parsed.data,
@@ -187,6 +191,7 @@ export class ApplicationService {
           applicantName: parsed.data.applicant.name,
           applicantEmail: parsed.data.applicant.email,
           address: parsed.data.project.address,
+          assetBaseUrl: applicationBaseUrl,
           summaryText: buildApplicationSummary(
             parsed.data,
             uploads.map((upload) => upload.filename),

@@ -269,6 +269,19 @@ export async function uploadApplicationFile(
   return { id: reservation.id, name: file.name, sizeBytes: file.size };
 }
 
+export async function removeApplicationUpload(
+  session: DraftSession,
+  uploadId: string,
+  fetcher: Fetcher = fetch,
+): Promise<void> {
+  await readJson(
+    await fetcher(`/api/applications/drafts/${session.id}/uploads/${uploadId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.resumeToken}` },
+    }),
+  );
+}
+
 export async function submitApplication(
   session: DraftSession,
   state: JourneyState,

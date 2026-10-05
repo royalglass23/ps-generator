@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ApplicationError } from "@/modules/applications/errors";
 import { UploadService, type UploadRecord } from "@/modules/uploads/upload-service";
 
 function setup(
@@ -17,7 +18,11 @@ function setup(
       },
       find: async (id) => uploads.get(id) ?? null,
       markReady: async (id) => {
-        const ready = { ...uploads.get(id)!, status: "ready" as const };
+        const upload = uploads.get(id);
+        if (!upload || upload.status !== "pending") {
+          throw new ApplicationError("APPLICATION_NOT_AVAILABLE", "The upload is not available.");
+        }
+        const ready = { ...upload, status: "ready" as const };
         uploads.set(id, ready);
         return ready;
       },
@@ -29,7 +34,14 @@ function setup(
       },
       beginCleanup: async (id) => {
         const upload = uploads.get(id);
-        if (!upload || upload.status === "ready") return null;
+        if (!upload || upload.status !== "pending") return null;
+        const candidate = { ...upload, status: "cleanup_pending" as const };
+        uploads.set(id, candidate);
+        return candidate;
+      },
+      beginCancellation: async (id) => {
+        const upload = uploads.get(id);
+        if (!upload || upload.status === "cleanup_pending") return upload ?? null;
         const candidate = { ...upload, status: "cleanup_pending" as const };
         uploads.set(id, candidate);
         return candidate;
@@ -104,6 +116,23 @@ describe("UploadService", () => {
     ).resolves.toMatchObject({ status: "ready" });
   });
 
+  it("does not delete a verified object when completion is repeated", async () => {
+    const { service, uploads } = setup();
+    await service.reserve({
+      applicationId: "app-123",
+      resumeToken: "secret",
+      originalName: "drawing.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 5,
+    });
+    await service.complete({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" });
+
+    await expect(
+      service.complete({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" }),
+    ).rejects.toMatchObject({ code: "APPLICATION_NOT_AVAILABLE" });
+    expect(uploads.get("upload-456")?.status).toBe("ready");
+  });
+
   it("deletes a disguised object and its reservation", async () => {
     const { service, uploads } = setup(new Uint8Array([0x4d, 0x5a, 0x90, 0x00]));
     await service.reserve({
@@ -128,6 +157,27 @@ describe("UploadService", () => {
       originalName: "drawing.pdf",
       contentType: "application/pdf",
       sizeBytes: 5,
+    });
+
+    await expect(
+      service.cancel({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" }),
+    ).resolves.toBeUndefined();
+    expect(uploads.size).toBe(0);
+  });
+
+  it("removes an authorized verified upload before submission", async () => {
+    const { service, uploads } = setup();
+    await service.reserve({
+      applicationId: "app-123",
+      resumeToken: "secret",
+      originalName: "drawing.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 5,
+    });
+    await service.complete({
+      applicationId: "app-123",
+      uploadId: "upload-456",
+      resumeToken: "secret",
     });
 
     await expect(
