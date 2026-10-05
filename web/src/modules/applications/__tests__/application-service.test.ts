@@ -183,9 +183,55 @@ describe("ApplicationService", () => {
 
     for (const message of repository.outbox) {
       expect(message.text).toContain("City: Auckland");
-      expect(message.text).toContain("Estimated installation: 3_months");
+      expect(message.text).toContain("Role: Homeowner");
+      expect(message.text).toContain("Estimated installation: Within 3 months");
+      expect(message.text).toContain("Project stage: Preparing Building Consent");
+      expect(message.text).toContain("Request: I need a PS1");
+      expect(message.text).toContain("Barrier type: Glass balustrade");
+      expect(message.text).toContain("System: Not sure");
+      expect(message.text).toContain("Fixing substrate: Timber");
+      expect(message.text).toContain("Area 1: Deck (External)");
+      expect(message.text).not.toContain("3_months");
+      expect(message.text).not.toContain("preparing_consent");
       expect(message.text).toContain("Uploaded files: fixing-section.pdf");
       expect(message.text).toContain("Application acknowledgement: Confirmed by Jordan Applicant");
+    }
+  });
+
+  it("uses display labels instead of stored codes for the submitted choices", async () => {
+    const { repository, service } = setup();
+    const created = await service.createDraft();
+
+    await service.submit(created.id, created.resumeToken, {
+      ...validSubmission,
+      applicant: { ...validSubmission.applicant, role: "architect" },
+      project: {
+        ...validSubmission.project,
+        estimatedInstallation: "not_sure",
+        stage: undefined,
+      },
+      design: { family: "balustrade", system: "side-channel" },
+      site: {
+        substrate: "not_sure",
+        locations: [{ types: ["balcony"], environment: "external", other: "" }],
+      },
+    });
+
+    for (const message of repository.outbox) {
+      expect(message.text).toContain("Role: Architect / Designer");
+      expect(message.text).toContain("Estimated installation: Not sure");
+      expect(message.text).toContain("Project stage: Not provided");
+      expect(message.text).toContain("Request: I need a PS1");
+      expect(message.text).toContain("Barrier type: Glass balustrade");
+      expect(message.text).toContain("System: Side Mount Channel");
+      expect(message.text).toContain("Fixing substrate: Not sure");
+      expect(message.text).toContain("Area 1: Balcony (External)");
+      expect(message.text).not.toContain("not_sure");
+      expect(message.text).not.toContain("side-channel");
+      expect(message.html).toContain("Side Mount Channel");
+      expect(message.html).toContain("Not sure");
+      expect(message.html).not.toContain("not_sure");
+      expect(message.html).not.toContain("side-channel");
     }
   });
 
