@@ -8,6 +8,7 @@ import {
   initialJourneyState,
   saveForLaterError,
   sendDraftResumeLink,
+  uploadApplicationFile,
   type JourneyState,
 } from "../public-journey";
 import { submissionPayloadSchema } from "../schemas";
@@ -148,5 +149,35 @@ describe("public application journey", () => {
 
   it("supplies the backend DWG content type when the browser leaves it blank", () => {
     expect(contentTypeForUpload({ name: "fixing-section.dwg", type: "" })).toBe("application/dwg");
+  });
+
+  it("cancels a reserved upload when the direct R2 upload fails", async () => {
+    const session = {
+      id: "draft-1",
+      resumeToken: "resume-secret",
+      expiresAt: "2026-10-09T00:00:00.000Z",
+      resumeUrl: "https://example.test/application/draft-1#token=resume-secret",
+    };
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({
+        id: "upload-1",
+        uploadUrl: "https://r2.example.test/signed-upload",
+        headers: { "Content-Type": "application/pdf" },
+      }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const file = new File(["%PDF-"], "drawing.pdf", { type: "application/pdf" });
+
+    await expect(uploadApplicationFile(session, file, fetcher)).rejects.toThrow(
+      "The file could not be uploaded. Try again.",
+    );
+    expect(fetcher).toHaveBeenLastCalledWith(
+      "/api/applications/drafts/draft-1/uploads/upload-1",
+      {
+        method: "DELETE",
+        headers: { Authorization: "Bearer resume-secret" },
+      },
+    );
   });
 });

@@ -56,13 +56,14 @@ It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `
 | `GET` | `/api/applications/drafts/:id` | Load an authorized, unexpired draft. |
 | `PUT` | `/api/applications/drafts/:id` | Save a draft and renew its 24-hour expiry. |
 | `POST` | `/api/applications/drafts/:id/uploads` | Atomically reserve capacity and return a signed R2 `PUT` URL. |
+| `DELETE` | `/api/applications/drafts/:id/uploads/:uploadId` | Cancel a pending reservation after a direct upload failure. |
 | `POST` | `/api/applications/drafts/:id/uploads/:uploadId/complete` | Inspect and accept the uploaded R2 object. |
 | `POST` | `/api/applications/drafts/:id/submit` | Validate, submit, lock, and queue notifications. |
 | `POST` | `/api/applications/drafts/:id/information-requests/:requestId/responses` | Respond to an open staff request. |
 
 Authorized applicant calls use `Authorization: Bearer <resumeToken>`. The resume URL places the token in the URL fragment so browsers do not send it in HTTP request logs.
 
-Draft creation expects `{ "turnstileToken": "..." }`. Upload reservation expects the filename, content type, byte size, and optional information-request ID as JSON. The browser then uploads directly to the returned R2 URL with the returned headers and calls the completion route. Configure the private R2 bucket CORS policy to allow `PUT` from the application origin and the `Content-Type` request header.
+Draft creation expects `{ "turnstileToken": "..." }`. Upload reservation expects the filename, content type, byte size, and optional information-request ID as JSON. The browser then uploads directly to the returned R2 URL with the returned headers and calls the completion route. If that direct upload fails, the browser cancels the pending reservation so the draft can still be submitted or retried. Reservations older than the signed URL lifetime no longer block submission, and the daily cleanup retries R2 deletion while retaining the object key until deletion succeeds. Configure the private R2 bucket CORS policy to allow `PUT` from the application origin and the `Content-Type` request header.
 
 Draft limits are keyed by an HMAC of the Vercel-provided client IP. Upload limits are keyed by an HMAC of the authorized application ID, so an unauthenticated caller cannot exhaust another application’s bucket. The daily cleanup job removes expired limiter buckets alongside expired drafts.
 

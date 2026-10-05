@@ -246,12 +246,20 @@ export async function uploadApplicationFile(
       body: JSON.stringify({ originalName: file.name, contentType, sizeBytes: file.size }),
     }),
   );
-  const uploadResponse = await fetcher(reservation.uploadUrl, {
-    method: "PUT",
-    headers: reservation.headers,
-    body: file,
-  });
-  if (!uploadResponse.ok) throw new Error("The file could not be uploaded. Try again.");
+  try {
+    const uploadResponse = await fetcher(reservation.uploadUrl, {
+      method: "PUT",
+      headers: reservation.headers,
+      body: file,
+    });
+    if (!uploadResponse.ok) throw new Error("Direct upload failed.");
+  } catch {
+    await fetcher(`/api/applications/drafts/${session.id}/uploads/${reservation.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.resumeToken}` },
+    }).catch(() => undefined);
+    throw new Error("The file could not be uploaded. Try again.");
+  }
   await readJson(
     await fetcher(`/api/applications/drafts/${session.id}/uploads/${reservation.id}/complete`, {
       method: "POST",

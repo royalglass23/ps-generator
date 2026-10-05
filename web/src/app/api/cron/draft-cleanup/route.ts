@@ -6,7 +6,9 @@ import { getCronConfig } from "@/lib/config";
 import { getDatabase } from "@/lib/db/client";
 import { DrizzleExpiredDraftRepository } from "@/modules/retention/drizzle-expired-draft-repository";
 import { ExpiredDraftCleanupService } from "@/modules/retention/expired-draft-cleanup-service";
+import { FailedUploadCleanupService } from "@/modules/retention/failed-upload-cleanup-service";
 import { DrizzleRateLimitRepository } from "@/modules/security/drizzle-rate-limit-repository";
+import { DrizzleUploadRepository } from "@/modules/uploads/drizzle-upload-repository";
 import { r2ObjectStore } from "@/modules/uploads/r2-object-store";
 
 export const runtime = "nodejs";
@@ -30,12 +32,16 @@ export async function GET(request: Request) {
     objectStore: r2ObjectStore,
   });
   const result = await service.run();
+  const failedUploadCleanup = await new FailedUploadCleanupService({
+    repository: new DrizzleUploadRepository(database),
+    objectStore: r2ObjectStore,
+  }).run();
   const expiredRateLimitsDeleted = await new DrizzleRateLimitRepository(database).deleteExpired(
     new Date(),
   );
   return NextResponse.json(
-    { ...result, expiredRateLimitsDeleted },
-    { status: result.failed ? 503 : 200 },
+    { ...result, failedUploadCleanup, expiredRateLimitsDeleted },
+    { status: result.failed || failedUploadCleanup.failed ? 503 : 200 },
   );
 }
 

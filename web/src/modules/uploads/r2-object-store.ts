@@ -8,6 +8,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { getR2Config } from "@/lib/config";
+import { uploadUrlTtlSeconds } from "./upload-policy";
 
 let client: S3Client | undefined;
 
@@ -39,7 +40,7 @@ export const r2ObjectStore = {
         ContentType: input.contentType,
         ContentLength: input.sizeBytes,
       }),
-      { expiresIn: 10 * 60 },
+      { expiresIn: uploadUrlTtlSeconds },
     );
   },
   async inspect(key: string): Promise<{
