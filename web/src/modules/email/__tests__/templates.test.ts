@@ -65,5 +65,29 @@ describe("submission email templates", () => {
     expect(applicant?.text).toContain("Hi Jordan Applicant");
     expect(applicant?.from).toBe("Royal Glass <support@royalglass.co.nz>");
     expect(applicant?.text).toContain("does not automatically confirm that a PS1 will be issued");
+    expect(applicant?.html).toContain("We&#039;ve received your application");
+    expect(applicant?.html).toContain("Royal Glass logo");
+    expect(applicant?.html).toContain("Application received");
+    expect(applicant?.html).toContain("See Royal Glass projects and services");
+    expect(applicant?.html).toContain("https://www.royalglass.co.nz/");
+    expect(applicant?.html).toContain("Auckland-Remuera-1-scaled.jpg");
+    expect(applicant?.html).toContain("font-family:'Kumbh Sans'");
+    expect(applicant?.html).toContain("background:#78b3b7");
+    expect(applicant?.html).toContain("color:#3d3d3d");
+    expect(applicant?.html).toContain("13E Paul Matthews Road, Rosedale, Auckland 0632");
+    expect(applicant?.html).toContain('href="tel:+64800769254"');
+    expect(applicant?.html).toContain("0800 769 254");
+    expect(applicant?.html).toContain("https://www.facebook.com/royalglassnz");
+    expect(applicant?.html).toContain("https://www.instagram.com/royalglassanz/");
+    expect(applicant?.html).toContain("https://www.linkedin.com/company/royalglassnz");
+    expect(applicant?.html).toContain("https://www.youtube.com/@RoyalGlassNZ/");
+    expect(applicant?.html.indexOf("Royal Glass logo")).toBeLessThan(
+      applicant?.html.indexOf("We&#039;ve received your application") ?? -1,
+    );
+    expect(applicant?.html).toContain("<th");
+    expect(applicant?.html).toMatch(
+      /<table(?![^>]*\brole=["']presentation["'])[^>]*>\s*<tr><th scope="row"/,
+    );
+    expect(applicant?.html).toContain("Jordan Applicant</td>");
   });
 });
