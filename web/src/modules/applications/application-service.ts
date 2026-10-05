@@ -7,6 +7,7 @@ import {
 } from "@/modules/email/templates";
 import type { EmailMessage } from "@/modules/email/types";
 
+import { buildApplicationSummary } from "./application-summary";
 import { ApplicationError } from "./errors";
 import {
   draftPayloadSchema,
@@ -49,35 +50,6 @@ function addHours(value: Date, hours: number): Date {
 
 function defaultReference(applicationId: string, now: Date): string {
   return `PS1-${now.getUTCFullYear()}-${applicationId.replaceAll("-", "").slice(0, 8).toUpperCase()}`;
-}
-
-function summaryText(payload: SubmissionPayload, uploadNames: string[]): string {
-  const locations = payload.site.locations.length ? payload.site.locations
-    .map(
-      (location, index) =>
-        `Area ${index + 1}: ${location.types.join(", ")} (${location.environment})${location.other ? ` - ${location.other}` : ""}`,
-    )
-    .join("\n") : "Locations: Not provided";
-  return [
-    `Applicant: ${payload.applicant.name}`,
-    `Email: ${payload.applicant.email}`,
-    `Mobile: ${payload.applicant.mobile}`,
-    `Role: ${payload.applicant.role || "Not provided"}`,
-    `Project address: ${payload.project.address}`,
-    `City: ${payload.project.city || "Not provided"}`,
-    `Postal code: ${payload.project.postalCode || "Not provided"}`,
-    `Building Consent number: ${payload.project.buildingConsentNumber || "Not provided"}`,
-    `Resource Consent number: ${payload.project.resourceConsentNumber || "Not provided"}`,
-    `Estimated installation: ${payload.project.estimatedInstallation}`,
-    `Project stage: ${payload.project.stage || "Not provided"}`,
-    `Request: ${payload.need}`,
-    `Barrier type: ${payload.design.family}`,
-    `System: ${payload.design.system}`,
-    `Fixing substrate: ${payload.site.substrate}`,
-    locations,
-    `Uploaded files: ${uploadNames.length ? uploadNames.join(", ") : "None"}`,
-    `Application acknowledgement: Confirmed by ${payload.applicant.name}`,
-  ].join("\n");
 }
 
 export class ApplicationService {
@@ -215,7 +187,7 @@ export class ApplicationService {
           applicantName: parsed.data.applicant.name,
           applicantEmail: parsed.data.applicant.email,
           address: parsed.data.project.address,
-          summaryText: summaryText(
+          summaryText: buildApplicationSummary(
             parsed.data,
             uploads.map((upload) => upload.filename),
           ),
