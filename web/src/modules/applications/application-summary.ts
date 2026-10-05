@@ -110,8 +110,6 @@ export function buildApplicationSummary(
     `Mobile: ${payload.applicant.mobile}`,
     `Role: ${roleLabels[payload.applicant.role]}`,
     `Project address: ${payload.project.address}`,
-    `City: ${payload.project.city || "Not provided"}`,
-    `Postal code: ${payload.project.postalCode || "Not provided"}`,
     `Building Consent number: ${payload.project.buildingConsentNumber || "Not provided"}`,
     `Resource Consent number: ${payload.project.resourceConsentNumber || "Not provided"}`,
     `Estimated installation: ${installationLabels[payload.project.estimatedInstallation]}`,

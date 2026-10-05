@@ -5,13 +5,14 @@ import {
   buildSubmissionPayload,
   contentTypeForUpload,
   createDraftSession,
+  applicantDetailsError,
   initialJourneyState,
-  saveForLaterError,
+  loadDraft,
   sendDraftResumeLink,
   uploadApplicationFile,
   type JourneyState,
 } from "../public-journey";
-import { submissionPayloadSchema } from "../schemas";
+import { draftPayloadSchema, submissionPayloadSchema } from "../schemas";
 
 const completeState: JourneyState = {
   need: "ps1",
@@ -23,8 +24,6 @@ const completeState: JourneyState = {
   },
   project: {
     address: "28 Example Street",
-    city: "Auckland",
-    postalCode: "1010",
     buildingConsentNumber: "BC-123",
     resourceConsentNumber: "",
     estimatedInstallation: "3_months",
@@ -92,6 +91,26 @@ describe("public application journey", () => {
     });
   });
 
+  it("drops removed city and postal-code keys when restoring a legacy draft", async () => {
+    const fetcher = vi.fn(async () => Response.json({
+      payload: {
+        ...buildDraftPayload(completeState),
+        project: {
+          ...buildDraftPayload(completeState).project,
+          city: "Auckland",
+          postalCode: "1010",
+        },
+      },
+    }));
+
+    const restored = await loadDraft("draft-1", "resume-secret", fetcher);
+    const rebuilt = buildDraftPayload(restored);
+
+    expect(rebuilt.project).not.toHaveProperty("city");
+    expect(rebuilt.project).not.toHaveProperty("postalCode");
+    expect(draftPayloadSchema.safeParse(rebuilt).success).toBe(true);
+  });
+
   it("creates a draft with the completed Turnstile token", async () => {
     const fetcher = vi.fn(async () =>
       new Response(
@@ -116,14 +135,14 @@ describe("public application journey", () => {
     });
   });
 
-  it("requires applicant contact details before saving for later", () => {
-    expect(saveForLaterError(completeState)).toBeNull();
+  it("requires valid applicant contact details", () => {
+    expect(applicantDetailsError(completeState)).toBeNull();
     expect(
-      saveForLaterError({
+      applicantDetailsError({
         ...completeState,
         applicant: { ...completeState.applicant, name: "", mobile: "", email: "not-an-email" },
       }),
-    ).toBe("Enter your full name, mobile number, and a valid email address before saving for later.");
+    ).toBe("Enter your full name, NZ phone number, and email address.");
   });
 
   it("requests a resume email for the authorized draft", async () => {

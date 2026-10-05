@@ -4,6 +4,7 @@ import { z } from "zod";
 import { bearerToken, errorResponse, unauthorizedResponse } from "@/lib/http";
 import { ApplicationError } from "@/modules/applications/errors";
 import { getApplicationService } from "@/modules/applications/runtime";
+import { informationResponseSchema } from "@/modules/applications/schemas";
 import { persistWithImmediateEmailDispatch } from "@/modules/email/runtime";
 
 export const runtime = "nodejs";
@@ -13,7 +14,7 @@ interface RouteContext {
   params: Promise<{ id: string; requestId: string }>;
 }
 
-const responseSchema = z.object({ response: z.string().trim().min(1).max(5_000) }).strict();
+const responseSchema = z.object({ response: informationResponseSchema }).strict();
 
 export async function POST(request: Request, context: RouteContext) {
   const token = bearerToken(request);

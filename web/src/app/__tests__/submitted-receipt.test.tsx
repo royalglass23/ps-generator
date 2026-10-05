@@ -17,8 +17,6 @@ const validDraftPayload = {
   },
   project: {
     address: "13 Example Street, Auckland",
-    city: "Auckland",
-    postalCode: "1010",
     buildingConsentNumber: "",
     resourceConsentNumber: "",
     estimatedInstallation: "not_sure",

@@ -10,7 +10,10 @@ import type { EmailMessage } from "@/modules/email/types";
 import { buildApplicationSummary } from "./application-summary";
 import { ApplicationError } from "./errors";
 import {
+  applicantEmailSchema,
+  applicantNameSchema,
   draftPayloadSchema,
+  informationResponseSchema,
   submissionPayloadSchema,
   type SubmissionPayload,
 } from "./schemas";
@@ -133,9 +136,9 @@ export class ApplicationService {
   ): Promise<{ email: string; resumeUrl: string }> {
     const application = await this.authorizeDraft(id, resumeToken);
     const applicant = application.payload.applicant;
-    const applicantName = applicant?.name?.trim();
-    const applicantEmail = applicant?.email?.trim();
-    if (!applicantName || !applicantEmail || !/^\S+@\S+\.\S+$/.test(applicantEmail)) {
+    const applicantName = applicantNameSchema.safeParse(applicant?.name);
+    const applicantEmail = applicantEmailSchema.safeParse(applicant?.email);
+    if (!applicantName.success || !applicantEmail.success) {
       throw new ApplicationError(
         "VALIDATION_FAILED",
         "Enter your full name and a valid email address before saving for later.",
@@ -149,14 +152,14 @@ export class ApplicationService {
     await this.repository.enqueueEmail(
       id,
       buildDraftResumeEmail({
-        applicantName,
-        applicantEmail,
+        applicantName: applicantName.data,
+        applicantEmail: applicantEmail.data,
         resumeUrl,
         supportEmail: email.supportEmail,
         applicantFromEmail: email.applicantFromEmail,
       }),
     );
-    return { email: applicantEmail, resumeUrl };
+    return { email: applicantEmail.data, resumeUrl };
   }
 
   async submit(id: string, resumeToken: string, payload: unknown): Promise<ApplicationRecord> {
@@ -219,10 +222,11 @@ export class ApplicationService {
         "This information request is not open.",
       );
     }
-    const cleanResponse = response.trim();
-    if (!cleanResponse || cleanResponse.length > 5_000) {
+    const parsedResponse = informationResponseSchema.safeParse(response);
+    if (!parsedResponse.success) {
       throw new ApplicationError("VALIDATION_FAILED", "The response is invalid.");
     }
+    const cleanResponse = parsedResponse.data;
     const email = this.getEmail();
     const message: EmailMessage = {
       kind: "information_response_received",
