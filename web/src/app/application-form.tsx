@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/modules/applications/public-journey";
 import { nextLocationTypes } from "@/modules/applications/location-types";
 import { DraftSavedNotice } from "./draft-saved-notice";
+import { persistSubmissionReceipt } from "./submission-receipt";
 
 declare global {
   interface Window {
@@ -230,6 +232,57 @@ export function SystemReferenceCard({ system }: { system: string }) {
   </figure>;
 }
 
+export function ApplicationSuccess({ reference, email }: { reference?: string; email?: string }) {
+  return (
+    <div className="rg-ps1">
+      <div className="portal-shell">
+        <header className="portal-masthead success-masthead">
+          <div className="masthead-shade" />
+          <div className="masthead-content">
+            <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
+            <div className="success-heading">
+              <span className="success-icon"><CheckIcon className="success-check" /></span>
+              <h1>Thank you. Your application is with Royal Glass.</h1>
+            </div>
+            <p>Our team has received your application and will begin reviewing it.</p>
+          </div>
+        </header>
+        <main className="success-card">
+          <p className="success-label">Application received</p>
+          {reference ? <div className="reference-panel"><span>Application reference</span><strong>{reference}</strong></div> : null}
+          {email ? <div className="email-confirmation">
+            <CheckIcon className="email-confirmation-icon" />
+            <span><strong>A confirmation email will be sent to</strong><small>{email}</small></span>
+          </div> : null}
+          {email ? <p className="email-hint">Check your junk folder if it does not arrive within a few minutes.</p> : null}
+          <div className="success-actions"><Link className="button primary" href="/">Back to homepage</Link></div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export function ApplicationReceiptUnavailable() {
+  return (
+    <div className="rg-ps1">
+      <div className="portal-shell">
+        <header className="portal-masthead success-masthead">
+          <div className="masthead-shade" />
+          <div className="masthead-content">
+            <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
+            <h1>Receipt unavailable</h1>
+            <p>This browser does not have a submitted application receipt to display.</p>
+          </div>
+        </header>
+        <main className="success-card">
+          <p className="success-label">Return to the homepage to start or continue an application.</p>
+          <div className="success-actions"><Link className="button primary" href="/">Back to homepage</Link></div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKey: string; googleMapsApiKey: string; draftId?: string }) {
   const [state, setState] = useState<JourneyState>(cloneInitialState);
   const [step, setStep] = useState(0);
@@ -365,7 +418,9 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       const activeSession = await ensureSession();
       await saveDraft(activeSession, state);
       await uploadPendingFiles(activeSession);
-      setSubmitted(await submitApplication(activeSession, state));
+      const receipt = await submitApplication(activeSession, state);
+      persistSubmissionReceipt({ ...receipt, email: state.applicant.email });
+      setSubmitted(receipt);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The application could not be submitted."); }
     finally { setBusy(false); }
   }
@@ -421,27 +476,7 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   const content = [needStep, projectStep, designStep, siteStep, documentsStep, applicantStep][step]();
   const saveState = status || (session ? "Draft active" : "Not saved yet");
 
-  if (submitted) return (
-    <div className="rg-ps1">
-      <div className="portal-shell">
-        <header className="portal-masthead success-masthead">
-          <div className="masthead-shade" />
-          <div className="masthead-content">
-            <Image className="brand-logo" src="/assets/brand/royal-glass-logo-white.png" alt="Royal Glass" width={150} height={72} priority />
-            <div className="success-heading">
-              <span className="success-icon"><CheckIcon className="success-check" /></span>
-              <h1>Thank you. Your application is with Royal Glass.</h1>
-            </div>
-            <p>We have emailed a copy to you and sent the application to our team for review.</p>
-          </div>
-        </header>
-        <main className="success-card">
-          <p className="success-label">Application received</p>
-          <div className="reference-panel"><span>Application reference</span><strong>{submitted.reference}</strong></div>
-        </main>
-      </div>
-    </div>
-  );
+  if (submitted) return <ApplicationSuccess reference={submitted.reference} email={state.applicant.email} />;
 
   return (
     <div className="rg-ps1">
