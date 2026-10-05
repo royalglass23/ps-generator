@@ -168,6 +168,10 @@
 .rg-ps1 .file-list span { display: grid; gap: .2rem; }
 .rg-ps1 .file-list small { color: var(--rg-muted); }
 .rg-ps1 .file-list b { color: var(--rg-success); font-size: .8rem; }
+.rg-ps1 .file-list .file-actions { display: flex; align-items: center; gap: .65rem; }
+.rg-ps1 .file-actions .text-button { position: static; }
+.rg-ps1 .upload-status.preparing, .rg-ps1 .upload-status.uploading, .rg-ps1 .upload-status.removing { color: var(--rg-muted); }
+.rg-ps1 .upload-retry { color: var(--rg-danger); font-weight: 700; }
 
 .rg-ps1 .summary { overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; }
 .rg-ps1 .summary > div { padding: .8rem 1rem; display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; }

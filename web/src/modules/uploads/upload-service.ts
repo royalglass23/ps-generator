@@ -29,7 +29,15 @@ interface UploadServiceDependencies {
     find(id: string, applicationId: string): Promise<UploadRecord | null>;
     markReady(id: string, applicationId: string, context: UploadContext): Promise<UploadRecord>;
     removePending(id: string, applicationId: string): Promise<UploadRecord | null>;
-    beginCleanup(id: string, applicationId: string): Promise<UploadRecord | null>;
+    beginCleanup(
+      id: string,
+      applicationId: string,
+    ): Promise<UploadRecord | null>;
+    beginCancellation(
+      id: string,
+      applicationId: string,
+      context: UploadContext,
+    ): Promise<UploadRecord | null>;
     finishCleanup(id: string, applicationId: string): Promise<void>;
   };
   objectStore: {
@@ -158,15 +166,15 @@ export class UploadService {
     resumeToken: string;
   }): Promise<void> {
     const upload = await this.dependencies.repository.find(input.uploadId, input.applicationId);
-    if (!upload || upload.status !== "pending") {
+    if (!upload || !["pending", "ready"].includes(upload.status)) {
       throw new ApplicationError("APPLICATION_NOT_AVAILABLE", "The upload is not available.");
     }
-    await this.dependencies.authorize(
+    const authorization = await this.dependencies.authorize(
       input.applicationId,
       input.resumeToken,
       upload.informationRequestId ?? undefined,
     );
-    const cleanupStarted = await this.cleanup(upload);
+    const cleanupStarted = await this.cancelUpload(upload, authorization.context);
     if (!cleanupStarted) {
       throw new ApplicationError("APPLICATION_NOT_AVAILABLE", "The upload is not available.");
     }
@@ -207,11 +215,24 @@ export class UploadService {
     }
   }
 
+  private async cancelUpload(upload: UploadRecord, context: UploadContext): Promise<boolean> {
+    const candidate = await this.dependencies.repository.beginCancellation(
+      upload.id,
+      upload.applicationId,
+      context,
+    );
+    return this.deleteCleanupCandidate(candidate);
+  }
+
   private async cleanup(upload: UploadRecord): Promise<boolean> {
     const candidate = await this.dependencies.repository.beginCleanup(
       upload.id,
       upload.applicationId,
     );
+    return this.deleteCleanupCandidate(candidate);
+  }
+
+  private async deleteCleanupCandidate(candidate: UploadRecord | null): Promise<boolean> {
     if (!candidate) return false;
     try {
       await this.dependencies.objectStore.delete(candidate.objectKey);

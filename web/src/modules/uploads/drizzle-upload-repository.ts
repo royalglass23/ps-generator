@@ -129,7 +129,10 @@ export class DrizzleUploadRepository {
     return row ? mapUpload(row) : null;
   }
 
-  async beginCleanup(id: string, applicationId: string): Promise<UploadRecord | null> {
+  async beginCleanup(
+    id: string,
+    applicationId: string,
+  ): Promise<UploadRecord | null> {
     const [claimed] = await this.db
       .update(uploads)
       .set({ status: "cleanup_pending" })
@@ -155,6 +158,64 @@ export class DrizzleUploadRepository {
       )
       .limit(1);
     return existing ? mapUpload(existing) : null;
+  }
+
+  async beginCancellation(
+    id: string,
+    applicationId: string,
+    context: UploadContext,
+  ): Promise<UploadRecord | null> {
+    return this.db.transaction(async (transaction) => {
+      const [application] = await transaction
+        .select({ status: applications.status })
+        .from(applications)
+        .where(eq(applications.id, applicationId))
+        .for("update");
+      const allowed =
+        application?.status === "draft" ||
+        (context !== "initial" && application?.status === "more_information_required");
+      if (!allowed) throw new ApplicationError("APPLICATION_LOCKED", "Uploads are not open.");
+      if (context !== "initial") {
+        const [request] = await transaction
+          .select({ id: informationRequests.id })
+          .from(informationRequests)
+          .where(
+            and(
+              eq(informationRequests.id, context.requestId),
+              eq(informationRequests.applicationId, applicationId),
+              eq(informationRequests.status, "open"),
+            ),
+          );
+        if (!request) throw new ApplicationError("INFORMATION_REQUEST_NOT_OPEN", "Uploads are not open.");
+      }
+
+      const [claimed] = await transaction
+        .update(uploads)
+        .set({ status: "cleanup_pending" })
+        .where(
+          and(
+            eq(uploads.id, id),
+            eq(uploads.applicationId, applicationId),
+            inArray(uploads.status, ["pending", "ready"]),
+            contextCondition(context),
+          ),
+        )
+        .returning();
+      if (claimed) return mapUpload(claimed);
+
+      const [existing] = await transaction
+        .select()
+        .from(uploads)
+        .where(
+          and(
+            eq(uploads.id, id),
+            eq(uploads.applicationId, applicationId),
+            eq(uploads.status, "cleanup_pending"),
+          ),
+        )
+        .limit(1);
+      return existing ? mapUpload(existing) : null;
+    });
   }
 
   async listForCleanup(staleBefore: Date, limit: number): Promise<UploadRecord[]> {
