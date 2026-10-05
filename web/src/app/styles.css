@@ -81,6 +81,8 @@
 .rg-ps1 .step-heading h2 { margin: 0; color: var(--rg-charcoal); font-size: clamp(1.65rem, 3vw, 2.15rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; }
 .rg-ps1 .form-card > h3 { margin: 2.35rem 0 .9rem; color: var(--rg-charcoal); font-size: 1.02rem; font-weight: 600; }
 .rg-ps1 .form-card > h3:first-of-type { margin-top: 0; }
+.rg-ps1 h3 small, .rg-ps1 .field > span small { color: var(--rg-muted); font-size: .72rem; font-weight: 400; }
+.rg-ps1 .section-intro { max-width: 66ch; margin: -.35rem 0 1.1rem; color: var(--rg-muted); }
 
 .rg-ps1 .choice-stack, .rg-ps1 .compact-grid, .rg-ps1 .image-grid { display: grid; gap: .75rem; }
 .rg-ps1 .compact-grid { grid-template-columns: repeat(3, 1fr); }
@@ -106,6 +108,13 @@
 .rg-ps1 .field input, .rg-ps1 .field select { width: 100%; min-height: 3rem; padding: .72rem .8rem; border: 1px solid var(--rg-line-strong); border-radius: 3px; background: var(--rg-white); color: var(--rg-ink); caret-color: var(--rg-teal); }
 .rg-ps1 .field input:hover, .rg-ps1 .field select:hover { border-color: #8aa3a6; }
 .rg-ps1 .field input::placeholder { color: #747b80; }
+.rg-ps1 .project-fields { margin-top: 1rem; }
+.rg-ps1 .address-field { grid-column: 1 / -1; }
+.rg-ps1 .google-address-host { min-height: 3rem; display: grid; align-items: center; }
+.rg-ps1 .google-address-control { width: 100%; color-scheme: light; }
+.rg-ps1 .field-loading { min-height: 3rem; padding: .72rem .8rem; display: flex; align-items: center; border: 1px solid var(--rg-line-strong); border-radius: 3px; color: var(--rg-muted); }
+.rg-ps1 .field-hint { margin: .15rem 0 0; color: var(--rg-muted); font-size: .76rem; }
+.rg-ps1 .text-action { width: fit-content; padding: .2rem 0; border: 0; background: transparent; color: var(--rg-teal-dark); font-size: .78rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
 .rg-ps1 .system-reference-card { margin: 1rem 0 0; overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; background: var(--rg-white); }
 .rg-ps1 .system-reference-card img { width: 100%; height: clamp(13rem, 32vw, 19rem); display: block; object-fit: cover; }
@@ -115,6 +124,7 @@
 
 .rg-ps1 .security-box, .rg-ps1 .notice { margin-top: 1.4rem; padding: 1rem 1.1rem; border: 1px solid #b8d7d9; border-radius: 4px; background: var(--rg-teal-pale); }
 .rg-ps1 .security-box > p, .rg-ps1 .notice p { margin: .35rem 0 .8rem; color: var(--rg-muted); font-size: .81rem; line-height: 1.55; }
+.rg-ps1 .security-box .security-complete { display: flex; align-items: center; gap: .45rem; color: var(--rg-success); font-weight: 600; }
 .rg-ps1 .notice.amber { border-color: #e4d0a8; background: var(--rg-warning-pale); }
 .rg-ps1 .error-text { color: var(--rg-danger) !important; }
 .rg-ps1 .section-head { margin: 2.25rem 0 .9rem; display: flex; align-items: end; justify-content: space-between; gap: 1rem; }

@@ -52,24 +52,24 @@ function defaultReference(applicationId: string, now: Date): string {
 }
 
 function summaryText(payload: SubmissionPayload, uploadNames: string[]): string {
-  const locations = payload.site.locations
+  const locations = payload.site.locations.length ? payload.site.locations
     .map(
       (location, index) =>
         `Area ${index + 1}: ${location.types.join(", ")} (${location.environment})${location.other ? ` - ${location.other}` : ""}`,
     )
-    .join("\n");
+    .join("\n") : "Locations: Not provided";
   return [
     `Applicant: ${payload.applicant.name}`,
     `Email: ${payload.applicant.email}`,
     `Mobile: ${payload.applicant.mobile}`,
-    `Role: ${payload.applicant.role}`,
+    `Role: ${payload.applicant.role || "Not provided"}`,
     `Project address: ${payload.project.address}`,
     `City: ${payload.project.city || "Not provided"}`,
     `Postal code: ${payload.project.postalCode || "Not provided"}`,
     `Building Consent number: ${payload.project.buildingConsentNumber || "Not provided"}`,
     `Resource Consent number: ${payload.project.resourceConsentNumber || "Not provided"}`,
     `Estimated installation: ${payload.project.estimatedInstallation}`,
-    `Project stage: ${payload.project.stage}`,
+    `Project stage: ${payload.project.stage || "Not provided"}`,
     `Request: ${payload.need}`,
     `Barrier type: ${payload.design.family}`,
     `System: ${payload.design.system}`,

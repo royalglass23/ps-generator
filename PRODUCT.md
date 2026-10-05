@@ -12,7 +12,7 @@ Architects, designers, builders, developers, and homeowners preparing a glass ba
 
 ## Product Purpose
 
-The PS1 Application collects the applicant, project, design, site-condition, and supporting-document information Royal Glass needs to review the appropriate compliance and commercial pathway. Success means an applicant can provide useful information confidently without interpreting submission as a guarantee that Royal Glass will issue a PS1.
+The PS1 Application collects enough project, design, site-condition, supporting-document, and mandatory contact information for Royal Glass to begin reviewing the appropriate compliance and commercial pathway. The initial journey is designed to take about a minute, accepts explicit uncertainty, and does not imply that submission guarantees Royal Glass will issue a PS1.
 
 ## Positioning
 
@@ -20,13 +20,16 @@ The journey combines a customer-facing visual system selection with structured p
 
 ## Operating Context
 
-Applicants may begin with incomplete drawings and return to a saved draft. They select a Royal Glass system or “Not sure,” identify installation conditions, upload drawings or photos, review their answers, and submit the application for assessment.
+Applicants may begin with incomplete information. They state what they need, provide the mandatory job address, select a project and Royal Glass system or “Not sure,” optionally describe locations and upload evidence, then provide mandatory contact details and submit the application for assessment.
 
 The production surface will ultimately be embedded in the Royal Glass WordPress site through a shortcode. The current Next.js application is the working visual and behavioural reference for that shortcode implementation.
 
 ## Capabilities and Constraints
 
-- Preserve the existing six-step journey, validation, draft saving, uploads, security check, review, submission, and success states.
+- Preserve the six-section quick journey, validation, draft saving, uploads, final security check, submission, and success states.
+- Full name, mobile, email, and job address are mandatory. Project stage, locations, and supporting documents are optional.
+- Estimated installation and site condition must support an explicit “Not sure” answer.
+- Use Google Places address autocomplete when configured, with manual job-address entry as the fallback.
 - A PS1 Application is a review request, not a PS1 order, accepted engagement, or promise to issue a PS1.
 - “More Information Request” is the customer-facing term for Royal Glass follow-up; “Council/BCA RFI” is reserved for authority-issued documents.
 - The System Catalogue must remain replaceable without redesigning the journey or changing existing application meaning.
