@@ -50,7 +50,7 @@ describe("public application journey", () => {
   it("accepts a quick submission with mandatory contact and address details", () => {
     const quickState: JourneyState = {
       ...completeState,
-      applicant: { ...completeState.applicant, role: "" },
+      applicant: { ...completeState.applicant, role: "homeowner" },
       project: {
         ...completeState.project,
         estimatedInstallation: "not_sure",
@@ -63,9 +63,17 @@ describe("public application journey", () => {
 
     const payload = buildSubmissionPayload(quickState);
     expect(submissionPayloadSchema.safeParse(payload).success).toBe(true);
-    expect(payload.applicant.role).toBeUndefined();
+    expect(payload.applicant.role).toBe("homeowner");
     expect(payload.project.stage).toBeUndefined();
     expect(payload.site.locations).toEqual([]);
+  });
+
+  it("rejects a final submission without an applicant role", () => {
+    expect(() => buildSubmissionPayload({
+      ...completeState,
+      applicant: { ...completeState.applicant, role: "" },
+      acknowledgement: true,
+    })).toThrow("Select your role in the project before submitting.");
   });
 
   it("maps the visible journey to the backend draft and submission contracts", () => {

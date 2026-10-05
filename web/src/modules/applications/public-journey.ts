@@ -100,6 +100,9 @@ export function buildSubmissionPayload(state: JourneyState): SubmissionPayload {
   if (!state.acknowledgement) {
     throw new Error("Confirm the application before submitting it.");
   }
+  if (!state.applicant.role) {
+    throw new Error("Select your role in the project before submitting.");
+  }
   const draft = buildDraftPayload(state);
   return {
     ...draft,
@@ -108,7 +111,7 @@ export function buildSubmissionPayload(state: JourneyState): SubmissionPayload {
       name: state.applicant.name,
       mobile: state.applicant.mobile,
       email: state.applicant.email,
-      role: state.applicant.role || undefined,
+      role: state.applicant.role,
     },
     project: {
       address: state.project.address,
