@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, lte } from "drizzle-orm";
 
 import type { Database } from "@/lib/db/client";
 import {
@@ -9,6 +9,7 @@ import {
   uploads,
 } from "@/lib/db/schema";
 import type { EmailMessage } from "@/modules/email/types";
+import { pendingUploadExpiresBefore } from "@/modules/uploads/upload-policy";
 import { ApplicationError } from "./errors";
 
 import type { DraftPayload, SubmissionPayload } from "./schemas";
@@ -127,6 +128,17 @@ export class DrizzleApplicationRepository implements ApplicationRepository {
         .where(and(eq(applications.id, input.id), eq(applications.status, "draft")))
         .returning();
       if (!row) throw new Error("Submission lost its draft status precondition.");
+      await transaction
+        .update(uploads)
+        .set({ status: "cleanup_pending" })
+        .where(
+          and(
+            eq(uploads.applicationId, input.id),
+            isNull(uploads.informationRequestId),
+            eq(uploads.status, "pending"),
+            lte(uploads.createdAt, pendingUploadExpiresBefore(input.submittedAt)),
+          ),
+        );
       const [pendingUpload] = await transaction
         .select({ id: uploads.id })
         .from(uploads)
@@ -213,6 +225,17 @@ export class DrizzleApplicationRepository implements ApplicationRepository {
         )
         .returning();
       if (!application) throw new Error("Application lost its information-request precondition.");
+      await transaction
+        .update(uploads)
+        .set({ status: "cleanup_pending" })
+        .where(
+          and(
+            eq(uploads.applicationId, input.applicationId),
+            eq(uploads.informationRequestId, input.requestId),
+            eq(uploads.status, "pending"),
+            lte(uploads.createdAt, pendingUploadExpiresBefore(input.respondedAt)),
+          ),
+        );
       const [pendingUpload] = await transaction
         .select({ id: uploads.id })
         .from(uploads)

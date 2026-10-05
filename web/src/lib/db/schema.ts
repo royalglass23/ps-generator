@@ -83,7 +83,10 @@ export const uploads = pgTable(
     originalName: text("original_name").notNull(),
     contentType: text("content_type").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
-    status: text("status").$type<"pending" | "ready">().notNull().default("pending"),
+    status: text("status")
+      .$type<"pending" | "ready" | "cleanup_pending">()
+      .notNull()
+      .default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [

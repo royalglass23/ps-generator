@@ -10,7 +10,7 @@ export interface UploadRecord {
   originalName: string;
   contentType: string;
   sizeBytes: number;
-  status: "pending" | "ready";
+  status: "pending" | "ready" | "cleanup_pending";
 }
 
 interface UploadServiceDependencies {
@@ -28,7 +28,9 @@ interface UploadServiceDependencies {
     ): Promise<UploadRecord>;
     find(id: string, applicationId: string): Promise<UploadRecord | null>;
     markReady(id: string, applicationId: string, context: UploadContext): Promise<UploadRecord>;
-    remove(id: string, applicationId: string): Promise<void>;
+    removePending(id: string, applicationId: string): Promise<UploadRecord | null>;
+    beginCleanup(id: string, applicationId: string): Promise<UploadRecord | null>;
+    finishCleanup(id: string, applicationId: string): Promise<void>;
   };
   objectStore: {
     createUploadUrl(input: {
@@ -145,8 +147,28 @@ export class UploadService {
       });
       return { upload, uploadUrl };
     } catch (error) {
-      await this.dependencies.repository.remove(id, input.applicationId).catch(() => undefined);
+      await this.dependencies.repository.removePending(id, input.applicationId).catch(() => undefined);
       throw error;
+    }
+  }
+
+  async cancel(input: {
+    applicationId: string;
+    uploadId: string;
+    resumeToken: string;
+  }): Promise<void> {
+    const upload = await this.dependencies.repository.find(input.uploadId, input.applicationId);
+    if (!upload || upload.status !== "pending") {
+      throw new ApplicationError("APPLICATION_NOT_AVAILABLE", "The upload is not available.");
+    }
+    await this.dependencies.authorize(
+      input.applicationId,
+      input.resumeToken,
+      upload.informationRequestId ?? undefined,
+    );
+    const cleanupStarted = await this.cleanup(upload);
+    if (!cleanupStarted) {
+      throw new ApplicationError("APPLICATION_NOT_AVAILABLE", "The upload is not available.");
     }
   }
 
@@ -180,9 +202,23 @@ export class UploadService {
         authorization.context,
       );
     } catch (error) {
-      await this.dependencies.objectStore.delete(upload.objectKey).catch(() => undefined);
-      await this.dependencies.repository.remove(upload.id, upload.applicationId).catch(() => undefined);
+      await this.cleanup(upload);
       throw error;
     }
+  }
+
+  private async cleanup(upload: UploadRecord): Promise<boolean> {
+    const candidate = await this.dependencies.repository.beginCleanup(
+      upload.id,
+      upload.applicationId,
+    );
+    if (!candidate) return false;
+    try {
+      await this.dependencies.objectStore.delete(candidate.objectKey);
+      await this.dependencies.repository.finishCleanup(candidate.id, candidate.applicationId);
+    } catch {
+      // Keep cleanup_pending so the scheduled cleanup can retry without blocking the application.
+    }
+    return true;
   }
 }

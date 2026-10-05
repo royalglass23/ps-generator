@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { UploadService, type UploadRecord } from "@/modules/uploads/upload-service";
 
-function setup(prefix = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])) {
+function setup(
+  prefix = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+  deleteObject: () => Promise<void> = async () => undefined,
+) {
   const uploads = new Map<string, UploadRecord>();
   const service = new UploadService({
     authorize: async () => ({ applicationId: "app-123", context: "initial" }),
@@ -18,8 +21,21 @@ function setup(prefix = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])) {
         uploads.set(id, ready);
         return ready;
       },
-      remove: async (id) => {
+      removePending: async (id) => {
+        const upload = uploads.get(id);
+        if (!upload || upload.status !== "pending") return null;
         uploads.delete(id);
+        return upload;
+      },
+      beginCleanup: async (id) => {
+        const upload = uploads.get(id);
+        if (!upload || upload.status === "ready") return null;
+        const candidate = { ...upload, status: "cleanup_pending" as const };
+        uploads.set(id, candidate);
+        return candidate;
+      },
+      finishCleanup: async (id) => {
+        if (uploads.get(id)?.status === "cleanup_pending") uploads.delete(id);
       },
     },
     objectStore: {
@@ -29,7 +45,7 @@ function setup(prefix = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])) {
         contentType: "application/pdf",
         prefix,
       }),
-      delete: async () => undefined,
+      delete: deleteObject,
     },
   });
   return { service, uploads };
@@ -102,5 +118,40 @@ describe("UploadService", () => {
       service.complete({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" }),
     ).rejects.toMatchObject({ code: "UNSUPPORTED_UPLOAD_TYPE" });
     expect(uploads.size).toBe(0);
+  });
+
+  it("cancels an authorized pending reservation after a direct upload failure", async () => {
+    const { service, uploads } = setup();
+    await service.reserve({
+      applicationId: "app-123",
+      resumeToken: "secret",
+      originalName: "drawing.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 5,
+    });
+
+    await expect(
+      service.cancel({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" }),
+    ).resolves.toBeUndefined();
+    expect(uploads.size).toBe(0);
+  });
+
+  it("retains durable cleanup work when R2 deletion fails during cancellation", async () => {
+    const { service, uploads } = setup(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+      async () => Promise.reject(new Error("R2 unavailable")),
+    );
+    await service.reserve({
+      applicationId: "app-123",
+      resumeToken: "secret",
+      originalName: "drawing.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 5,
+    });
+
+    await expect(
+      service.cancel({ applicationId: "app-123", uploadId: "upload-456", resumeToken: "secret" }),
+    ).resolves.toBeUndefined();
+    expect(uploads.get("upload-456")?.status).toBe("cleanup_pending");
   });
 });

@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, sum } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, lte, or, sum } from "drizzle-orm";
 
 import type { Database } from "@/lib/db/client";
 import { applications, informationRequests, uploads } from "@/lib/db/schema";
@@ -59,7 +59,13 @@ export class DrizzleUploadRepository {
       const [usage] = await transaction
         .select({ count: count(), totalBytes: sum(uploads.sizeBytes) })
         .from(uploads)
-        .where(and(eq(uploads.applicationId, upload.applicationId), contextCondition(context)));
+        .where(
+          and(
+            eq(uploads.applicationId, upload.applicationId),
+            contextCondition(context),
+            inArray(uploads.status, ["pending", "ready"]),
+          ),
+        );
       if ((usage?.count ?? 0) >= limits.maxFiles) {
         throw new ApplicationError("UPLOAD_LIMIT_REACHED", "The upload limit has been reached.");
       }
@@ -109,7 +115,72 @@ export class DrizzleUploadRepository {
     });
   }
 
-  async remove(id: string, applicationId: string): Promise<void> {
-    await this.db.delete(uploads).where(and(eq(uploads.id, id), eq(uploads.applicationId, applicationId)));
+  async removePending(id: string, applicationId: string): Promise<UploadRecord | null> {
+    const [row] = await this.db
+      .delete(uploads)
+      .where(
+        and(
+          eq(uploads.id, id),
+          eq(uploads.applicationId, applicationId),
+          eq(uploads.status, "pending"),
+        ),
+      )
+      .returning();
+    return row ? mapUpload(row) : null;
+  }
+
+  async beginCleanup(id: string, applicationId: string): Promise<UploadRecord | null> {
+    const [claimed] = await this.db
+      .update(uploads)
+      .set({ status: "cleanup_pending" })
+      .where(
+        and(
+          eq(uploads.id, id),
+          eq(uploads.applicationId, applicationId),
+          eq(uploads.status, "pending"),
+        ),
+      )
+      .returning();
+    if (claimed) return mapUpload(claimed);
+
+    const [existing] = await this.db
+      .select()
+      .from(uploads)
+      .where(
+        and(
+          eq(uploads.id, id),
+          eq(uploads.applicationId, applicationId),
+          eq(uploads.status, "cleanup_pending"),
+        ),
+      )
+      .limit(1);
+    return existing ? mapUpload(existing) : null;
+  }
+
+  async listForCleanup(staleBefore: Date, limit: number): Promise<UploadRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(uploads)
+      .where(
+        or(
+          eq(uploads.status, "cleanup_pending"),
+          and(eq(uploads.status, "pending"), lte(uploads.createdAt, staleBefore)),
+        ),
+      )
+      .orderBy(asc(uploads.createdAt))
+      .limit(limit);
+    return rows.map(mapUpload);
+  }
+
+  async finishCleanup(id: string, applicationId: string): Promise<void> {
+    await this.db
+      .delete(uploads)
+      .where(
+        and(
+          eq(uploads.id, id),
+          eq(uploads.applicationId, applicationId),
+          eq(uploads.status, "cleanup_pending"),
+        ),
+      );
   }
 }

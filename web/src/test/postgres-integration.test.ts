@@ -13,6 +13,7 @@ import { DrizzleApplicationRepository } from "@/modules/applications/drizzle-app
 import type { ApplicationRecord } from "@/modules/applications/types";
 import { DrizzleOutboxRepository } from "@/modules/email/drizzle-outbox-repository";
 import type { EmailMessage } from "@/modules/email/types";
+import { FailedUploadCleanupService } from "@/modules/retention/failed-upload-cleanup-service";
 import { DrizzleRateLimitRepository } from "@/modules/security/drizzle-rate-limit-repository";
 import { RateLimiter } from "@/modules/security/rate-limiter";
 import { DrizzleUploadRepository } from "@/modules/uploads/drizzle-upload-repository";
@@ -134,6 +135,89 @@ describe("PostgreSQL adapters", () => {
     expect(rows[0]?.toAddresses).toEqual(["applicant@example.test"]);
   });
 
+  it("submits after reconciling a pending upload whose signed URL has expired", async () => {
+    const repository = new DrizzleApplicationRepository(database);
+    const draftId = "55555555-5555-4555-8555-555555555555";
+    const uploadId = "66666666-6666-4666-8666-666666666666";
+    await repository.createDraft({
+      id: draftId,
+      reference: null,
+      status: "draft",
+      resumeTokenHash: "hash",
+      payload: {},
+      draftExpiresAt: new Date("2026-10-03T00:00:00.000Z"),
+      createdAt: NOW,
+      updatedAt: NOW,
+      submittedAt: null,
+      lockedAt: null,
+    });
+    await database.insert(uploads).values({
+      id: uploadId,
+      applicationId: draftId,
+      objectKey: `applications/${draftId}/initial/${uploadId}`,
+      originalName: "drawing.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 5,
+      status: "pending",
+      createdAt: new Date(NOW.getTime() - 11 * 60 * 1_000),
+    });
+
+    await expect(repository.submit({
+      id: draftId,
+      payload: {
+        need: "ps1",
+        applicant: {
+          name: "Jordan Applicant",
+          mobile: "021 555 0101",
+          email: "jordan@example.test",
+          role: "homeowner",
+        },
+        project: {
+          address: "28 Example Street",
+          city: "Auckland",
+          postalCode: "1010",
+          buildingConsentNumber: "",
+          resourceConsentNumber: "",
+          estimatedInstallation: "3_months",
+          stage: "preparing_consent",
+        },
+        design: { family: "balustrade", system: "not-sure" },
+        site: {
+          substrate: "timber",
+          locations: [{ types: ["deck"], environment: "external", other: "" }],
+        },
+        acknowledgement: { accepted: true },
+      },
+      reference: "PS1-2026-STALE001",
+      submittedAt: NOW,
+      buildMessages: () => [{
+        kind: "internal_submission",
+        from: "Royal Glass <support@royalglass.co.nz>",
+        to: ["recipient@example.test"],
+        subject: "PS1",
+        text: "PS1",
+        html: "<p>PS1</p>",
+      }],
+    })).resolves.toMatchObject({ status: "submitted" });
+
+    const [reconciled] = await database.select().from(uploads).where(eq(uploads.id, uploadId));
+    expect(reconciled?.status).toBe("cleanup_pending");
+
+    const deletedKeys: string[] = [];
+    const cleanup = new FailedUploadCleanupService({
+      repository: new DrizzleUploadRepository(database),
+      objectStore: {
+        delete: async (key) => {
+          deletedKeys.push(key);
+        },
+      },
+      now: () => NOW,
+    });
+    await expect(cleanup.run()).resolves.toEqual({ deleted: 1, failed: 0 });
+    expect(deletedKeys).toEqual([`applications/${draftId}/initial/${uploadId}`]);
+    expect(await database.select().from(uploads).where(eq(uploads.id, uploadId))).toHaveLength(0);
+  });
+
   it("atomically rejects concurrent requests beyond a shared rate-limit bucket", async () => {
     const limiter = new RateLimiter({
       repository: new DrizzleRateLimitRepository(database),
@@ -187,7 +271,9 @@ describe("PostgreSQL adapters", () => {
     );
 
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(5);
-    expect(await database.select().from(uploads)).toHaveLength(5);
+    expect(
+      await database.select().from(uploads).where(eq(uploads.informationRequestId, REQUEST_ID)),
+    ).toHaveLength(5);
   });
 
   it("attaches ready More Information uploads to the transactional notification", async () => {

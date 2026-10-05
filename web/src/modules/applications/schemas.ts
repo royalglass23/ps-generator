@@ -109,7 +109,7 @@ export const submissionPayloadSchema = z
         name: z.string().trim().min(1).max(200),
         mobile: z.string().trim().min(1).max(50),
         email: z.email().max(320),
-        role: z.enum(applicantRoles).optional(),
+        role: z.enum(applicantRoles),
       })
       .strict(),
     project: z
