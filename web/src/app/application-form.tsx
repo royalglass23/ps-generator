@@ -12,7 +12,6 @@ import {
   removeApplicationUpload,
   saveForLaterError,
   saveDraft,
-  sendDraftResumeLink,
   submitApplication,
   uploadApplicationFile,
   type DraftSession,
@@ -20,7 +19,6 @@ import {
   type UploadedFile,
 } from "@/modules/applications/public-journey";
 import { nextLocationTypes } from "@/modules/applications/location-types";
-import { DraftSavedNotice } from "./draft-saved-notice";
 import { persistSubmissionReceipt } from "./submission-receipt";
 
 declare global {
@@ -303,20 +301,16 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   const [googleMapsReady, setGoogleMapsReady] = useState(false);
   const [googleMapsFailed, setGoogleMapsFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [savingForLater, setSavingForLater] = useState(false);
   const [status, setStatus] = useState("");
-  const [savedReceipt, setSavedReceipt] = useState<{ resumeUrl: string; email: string; emailed?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState<{ reference: string; submittedAt: string } | null>(null);
   const turnstileContainer = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const sessionPromise = useRef<Promise<DraftSession> | null>(null);
   const sessionRef = useRef<DraftSession | null>(null);
-  const savingForLaterRef = useRef(false);
   const uploadItemsRef = useRef<UploadItem[]>([]);
   const activeUploads = useRef(0);
   const removedUploadItems = useRef(new Set<string>());
-  const uploadWaiters = useRef<Array<() => void>>([]);
   const nextUploadItemId = useRef(0);
 
   useEffect(() => {
@@ -394,12 +388,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     ));
   }
 
-  function finishUploadWork() {
-    if (uploadItemsRef.current.some((item) => item.status === "preparing" || item.status === "uploading" || item.status === "removing")) return;
-    const waiters = uploadWaiters.current.splice(0);
-    waiters.forEach((resolve) => resolve());
-  }
-
   async function runUpload(item: UploadItem) {
     let uploaded: UploadedFile;
     try {
@@ -414,7 +402,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       }
       activeUploads.current -= 1;
       pumpUploads();
-      finishUploadWork();
       return;
     }
 
@@ -432,7 +419,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     }
     activeUploads.current -= 1;
     pumpUploads();
-    finishUploadWork();
   }
 
   function pumpUploads() {
@@ -443,11 +429,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       activeUploads.current += 1;
       void runUpload(item);
     }
-  }
-
-  async function waitForUploads() {
-    if (!uploadItemsRef.current.some((item) => item.status === "preparing" || item.status === "uploading" || item.status === "removing")) return;
-    await new Promise<void>((resolve) => uploadWaiters.current.push(resolve));
   }
 
   async function persist(message: string): Promise<DraftSession | null> {
@@ -472,40 +453,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     setError("");
     setStep((current) => Math.min(current + 1, stepLabels.length - 1));
     setFurthestStep((current) => Math.max(current, step + 1));
-  }
-
-  async function saveForLater() {
-    if (savingForLaterRef.current) return;
-    const contactError = saveForLaterError(state);
-    if (contactError) {
-      setStatus("");
-      setError(contactError);
-      setStep(stepLabels.length - 1);
-      return;
-    }
-    savingForLaterRef.current = true;
-    setSavingForLater(true);
-    let activeSession: DraftSession | null = null;
-    try {
-      activeSession = await persist("Draft saved");
-      if (!activeSession) return;
-      await waitForUploads();
-      if (uploadItemsRef.current.some((item) => item.status === "failed")) {
-        throw new Error("Retry or remove failed files before saving for later.");
-      }
-      const receipt = await sendDraftResumeLink(activeSession);
-      setSavedReceipt(receipt);
-      setStatus("");
-    } catch (reason) {
-      if (activeSession) {
-        setSavedReceipt({ resumeUrl: activeSession.resumeUrl, email: state.applicant.email, emailed: false });
-        setStatus("Draft saved. The email could not be sent yet, so keep the link below.");
-      }
-      setError(reason instanceof Error ? reason.message : "The resume email could not be sent.");
-    } finally {
-      savingForLaterRef.current = false;
-      setSavingForLater(false);
-    }
   }
 
   function addFiles(selected: FileList | null) {
@@ -547,8 +494,6 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     } catch (reason) {
       updateUploadItem(item.clientId, { status: "uploaded" });
       setError(reason instanceof Error ? reason.message : "The file could not be removed. Try again.");
-    } finally {
-      finishUploadWork();
     }
   }
 
@@ -608,7 +553,7 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   function documentsStep() {
     const fileCount = uploadItems.length;
     const uploadEnabled = Boolean(session || turnstileToken);
-    return <><p className="section-intro">Add anything you already have. This section is optional.</p>{!session ? <div className="security-box"><strong>Security check</strong><p>Complete this quick check before selecting files. It protects uploads from automated abuse.</p>{turnstileToken ? <p className="security-complete"><CheckIcon /> Security check complete</p> : siteKey ? <div ref={turnstileContainer} /> : <p className="error-text">Security check configuration is required before files can upload.</p>}</div> : null}<label className={`upload-zone ${fileCount >= 5 || !uploadEnabled ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || fileCount >= 5 || !uploadEnabled} onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} /><strong>{fileCount >= 5 ? "Maximum of 5 files reached" : uploadEnabled ? "Select drawings, documents or photos" : "Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{uploadItems.map((item) => <div key={item.clientId}><span><strong>{item.file.name}</strong><small>{Math.ceil(item.file.size / 1024)} KB</small></span><span className="file-actions">{item.status === "failed" ? <button type="button" className="text-button upload-retry" onClick={() => retryUpload(item.clientId)}>Upload failed — Retry</button> : <b className={`upload-status ${item.status}`}>{item.status === "preparing" ? "Ready/preparing" : item.status === "uploading" ? "Uploading…" : item.status === "uploaded" ? "Uploaded" : "Removing…"}</b>}<button type="button" className="text-button" onClick={() => void removeUpload(item)} aria-label={`Remove ${item.file.name}`}>Remove</button></span></div>)}</div><div className="notice">Don’t have everything yet? Continue without uploading. Royal Glass will contact you if anything else is needed.</div></>;
+    return <><p className="section-intro">Add anything you already have. This section is optional.</p>{!session ? <div className="security-box"><strong>Security check</strong><p>Complete this quick check before selecting files. It protects uploads from automated abuse.</p>{turnstileToken ? <p className="security-complete"><CheckIcon /> Security check complete</p> : siteKey ? <div ref={turnstileContainer} /> : <p className="error-text">Security check configuration is required before files can upload.</p>}</div> : null}<label className={`upload-zone ${fileCount >= 5 || !uploadEnabled ? "disabled" : ""}`}><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg" disabled={busy || fileCount >= 5 || !uploadEnabled} onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} /><strong>{fileCount >= 5 ? "Maximum of 5 files reached" : uploadEnabled ? "Select drawings, documents or photos" : "Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label><div className="file-list">{uploadItems.map((item) => <div key={item.clientId}><span><strong>{item.file.name}</strong><small>{Math.ceil(item.file.size / 1024)} KB</small></span><span className="file-actions">{item.status === "failed" ? <button type="button" className="text-button upload-retry" onClick={() => retryUpload(item.clientId)}>Upload failed — Retry</button> : <b className={`upload-status ${item.status}`}>{item.status === "preparing" ? "Ready/preparing" : item.status === "uploading" ? "Uploading…" : item.status === "uploaded" ? "Uploaded" : "Removing…"}</b>}<button type="button" className="text-button" onClick={() => void removeUpload(item)} aria-label={`Remove ${item.file.name}`}>Remove</button></span></div>)}</div><div className="notice">Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.</div></>;
   }
 
   function applicantStep() {
@@ -664,10 +609,8 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
             {content}
             {error ? <div className="form-error" role="alert">{error}</div> : null}
             {status ? <div className="form-status" role="status">{status}</div> : null}
-            {savedReceipt ? <DraftSavedNotice {...savedReceipt} /> : null}
             <div className="form-actions">
               <button type="button" className="button secondary" disabled={step === 0 || busy} onClick={() => setStep((current) => current - 1)}>Back</button>
-              <button type="button" className="button ghost" disabled={busy || savingForLater} onClick={() => void saveForLater()}>{busy || savingForLater ? "Saving…" : "Save for later"}</button>
               {step < stepLabels.length - 1 ? <button type="button" className="button primary" disabled={busy || !stepIsValid(state, step)} onClick={() => void continueForward()}>{busy ? "Saving…" : "Continue"}</button> : <button type="button" className="button primary" disabled={busy || uploadActive || !allRequiredValid || !state.acknowledgement} onClick={() => void submit()}>{busy ? "Submitting…" : "Submit application"}</button>}
             </div>
           </section>

@@ -419,19 +419,14 @@ describe("application uploads", () => {
     expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url.endsWith("/uploads"))).toHaveLength(1);
   });
 
-  it("sends only one resume email when Save for later is clicked repeatedly during upload", async () => {
-    const directUpload = deferred<Response>();
-    const fetcher = standardFetcher({ directUploads: [directUpload.promise] });
-    await renderWith(fetcher);
+  it("keeps missing documents from blocking submission without offering Save for later", async () => {
+    await renderWith(standardFetcher());
+    expect(document.body.textContent).not.toContain("Save for later");
+
     await goToDocuments();
-    await act(async () => selectFiles(new File(["%PDF-"], "drawing.pdf", { type: "application/pdf" })));
-    await waitFor(() => expect(document.body.textContent).toContain("Uploading…"));
-    const save = button("Save for later");
-    await act(async () => {
-      save.click();
-      save.click();
-    });
-    directUpload.resolve(new Response(null, { status: 200 }));
-    await waitFor(() => expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url.endsWith("/resume-link"))).toHaveLength(1));
+    expect(document.body.textContent).toContain(
+      "Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.",
+    );
+    expect(document.body.textContent).not.toContain("Save for later");
   });
 });
