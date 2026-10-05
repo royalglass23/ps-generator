@@ -39,7 +39,7 @@
 .rg-ps1 .masthead-meta { margin-bottom: 1.85rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
 .rg-ps1 .brand-logo { width: 150px; height: auto; display: block; }
 .rg-ps1 .masthead-meta p { margin: 0; color: rgb(255 255 255 / 82%); font-size: .82rem; }
-.rg-ps1 .portal-masthead h1 { max-width: 800px; margin: 0; color: var(--rg-white); font-size: clamp(2.6rem, 5.8vw, 4.75rem); font-weight: 600; letter-spacing: -.035em; line-height: 1.02; text-wrap: balance; }
+.rg-ps1 .portal-masthead h1 { max-width: 800px; margin: 0; color: var(--rg-white); font-size: clamp(1.65rem, 3vw, 2.15rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; text-wrap: balance; }
 .rg-ps1 .masthead-intro, .rg-ps1 .success-masthead .masthead-content > p { max-width: 710px; margin: 1.15rem 0 0; color: rgb(255 255 255 / 88%); font-size: clamp(1rem, 1.5vw, 1.12rem); line-height: 1.7; }
 .rg-ps1 .hero-progress { max-width: 710px; margin-top: 2rem; }
 .rg-ps1 .hero-progress > div:first-child { margin-bottom: .65rem; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; color: rgb(255 255 255 / 76%); font-size: .76rem; }
@@ -97,9 +97,13 @@
 .rg-ps1 .choice strong { display: flex; justify-content: space-between; gap: .5rem; color: var(--rg-charcoal); font-weight: 600; }
 .rg-ps1 .check-icon { width: .9rem; height: .9rem; flex: 0 0 .9rem; color: var(--rg-teal-dark); fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .rg-ps1 .choice small { color: var(--rg-muted); line-height: 1.5; }
+.rg-ps1 .design-family-grid .choice { flex-direction: column; gap: .75rem; }
+.rg-ps1 .design-family-grid .choice-image { width: 100%; min-height: 0; flex-basis: auto; aspect-ratio: 16 / 7; }
+.rg-ps1 .design-family-grid .choice > span { align-content: start; }
 .rg-ps1 .image-grid.four .choice { flex-direction: column; gap: .75rem; }
 .rg-ps1 .image-grid.four .choice-image { width: 100%; min-height: 0; flex-basis: auto; aspect-ratio: 4 / 3; }
 .rg-ps1 .image-grid.four .choice > span { min-height: 2.25rem; align-content: start; }
+.rg-ps1 .substrate-grid .choice:last-child { grid-column: span 2; }
 
 .rg-ps1 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .rg-ps1 .field { min-width: 0; display: grid; gap: .42rem; }
@@ -133,7 +137,7 @@
 .rg-ps1 .areas { display: grid; gap: 1rem; }
 .rg-ps1 .area { padding: 1.2rem; position: relative; border: 1px solid var(--rg-line); border-radius: 4px; }
 .rg-ps1 .area legend { padding: 0 .38rem; color: var(--rg-charcoal); font-weight: 600; }
-.rg-ps1 .text-button { position: absolute; top: .75rem; right: .8rem; border: 0; background: none; color: var(--rg-teal-dark); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.rg-ps1 .text-button { width: max-content; margin: -.25rem 0 .75rem auto; padding: 0; display: block; border: 0; background: none; color: var(--rg-teal-dark); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .rg-ps1 .area-fields { display: grid; gap: 1rem; }
 .rg-ps1 .multi-select summary { min-height: 3rem; padding: .65rem .8rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid var(--rg-line-strong); border-radius: 3px; background: var(--rg-white); cursor: pointer; list-style: none; }
 .rg-ps1 .multi-select summary:hover, .rg-ps1 .multi-select[open] summary { border-color: var(--rg-teal); }
@@ -222,13 +226,14 @@
   .rg-ps1 .brand-logo { width: 122px; }
   .rg-ps1 .masthead-meta { margin-bottom: 2.1rem; align-items: flex-start; }
   .rg-ps1 .masthead-meta p { max-width: 9.5rem; text-align: right; }
-  .rg-ps1 .portal-masthead h1 { font-size: clamp(2.5rem, 14vw, 3.35rem); }
+  .rg-ps1 .portal-masthead h1 { font-size: clamp(1.65rem, 8vw, 2.15rem); }
   .rg-ps1 .masthead-intro { font-size: .96rem; }
   .rg-ps1 .primer { width: calc(100% - 2rem); margin-bottom: 1.5rem; }
   .rg-ps1 .primer > div { padding: .9rem 1.35rem; }
   .rg-ps1 .application-layout { width: calc(100% - 1rem); }
   .rg-ps1 .field-grid, .rg-ps1 .compact-grid, .rg-ps1 .image-grid { grid-template-columns: 1fr; }
   .rg-ps1 .image-grid.four { grid-template-columns: 1fr; }
+  .rg-ps1 .substrate-grid .choice:last-child { grid-column: auto; }
   .rg-ps1 .system-reference-card figcaption { display: grid; }
   .rg-ps1 .system-reference-card span { text-align: left; }
   .rg-ps1 .form-card { padding: 1.15rem; }

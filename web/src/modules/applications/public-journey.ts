@@ -65,7 +65,7 @@ export const initialJourneyState: JourneyState = {
     estimatedInstallation: "not_sure",
     stage: "",
   },
-  design: { family: "", system: "" },
+  design: { family: "balustrade", system: "" },
   site: {
     substrate: "not_sure",
     locations: [],

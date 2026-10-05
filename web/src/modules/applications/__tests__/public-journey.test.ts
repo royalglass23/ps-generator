@@ -38,11 +38,11 @@ const completeState: JourneyState = {
 };
 
 describe("public application journey", () => {
-  it("starts optional project answers empty and explicit uncertainty answers selected", () => {
+  it("starts with the intended defaults and optional project answers empty", () => {
     expect(initialJourneyState.project.estimatedInstallation).toBe("not_sure");
     expect(initialJourneyState.project.stage).toBe("");
     expect(initialJourneyState.applicant.role).toBe("");
-    expect(initialJourneyState.design.family).toBe("");
+    expect(initialJourneyState.design.family).toBe("balustrade");
     expect(initialJourneyState.site.substrate).toBe("not_sure");
     expect(initialJourneyState.site.locations).toEqual([]);
   });
