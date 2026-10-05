@@ -33,6 +33,7 @@ describe("submission email templates", () => {
       serviceM8Email: "de9f86@inbox.servicem8.com",
       internalFromEmail: "PS1 Generator <support@royalglass.co.nz>",
       applicantFromEmail: "Royal Glass <support@royalglass.co.nz>",
+      assetBaseUrl: "https://ps1.example.test",
     });
 
     const internal = messages.find((message) => message.kind === "internal_submission");
@@ -55,6 +56,7 @@ describe("submission email templates", () => {
       serviceM8Email: "de9f86@inbox.servicem8.com",
       internalFromEmail: "PS1 Generator <support@royalglass.co.nz>",
       applicantFromEmail: "Royal Glass <support@royalglass.co.nz>",
+      assetBaseUrl: "https://ps1.example.test",
     });
 
     const applicant = messages.find((message) => message.kind === "applicant_confirmation");
@@ -81,6 +83,21 @@ describe("submission email templates", () => {
     expect(applicant?.html).toContain("https://www.instagram.com/royalglassanz/");
     expect(applicant?.html).toContain("https://www.linkedin.com/company/royalglassnz");
     expect(applicant?.html).toContain("https://www.youtube.com/@RoyalGlassNZ/");
+    expect(applicant?.html).toContain('align="center"');
+    expect(applicant?.html).toContain("text-align:center");
+    expect(applicant?.html).toContain('role="presentation" align="center"');
+    expect(applicant?.html).toContain('alt="Facebook"');
+    expect(applicant?.html).toContain('alt="Instagram"');
+    expect(applicant?.html).toContain('alt="LinkedIn"');
+    expect(applicant?.html).toContain('alt="YouTube"');
+    expect(applicant?.html).toContain("https://ps1.example.test/assets/email/facebook.png");
+    expect(applicant?.html).toContain("https://ps1.example.test/assets/email/instagram.png");
+    expect(applicant?.html).toContain("https://ps1.example.test/assets/email/linkedin.png");
+    expect(applicant?.html).toContain("https://ps1.example.test/assets/email/youtube.png");
+    expect(applicant?.html).not.toContain(">Facebook</a>");
+    expect(applicant?.html).not.toContain(">Instagram</a>");
+    expect(applicant?.html).not.toContain(">LinkedIn</a>");
+    expect(applicant?.html).not.toContain(">YouTube</a>");
     expect(applicant?.html.indexOf("Royal Glass logo")).toBeLessThan(
       applicant?.html.indexOf("We&#039;ve received your application") ?? -1,
     );
