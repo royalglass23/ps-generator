@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home2/royalgl8/public_html/wp-content/plugins/royal-glass-ps1-native
+    - /bin/mkdir -p "$DEPLOYPATH/assets" "$DEPLOYPATH/includes"
+    - /bin/cp -R wordpress-native/royal-glass-ps1-native/assets/. "$DEPLOYPATH/assets/"
+    - /bin/cp -R wordpress-native/royal-glass-ps1-native/includes/. "$DEPLOYPATH/includes/"
+    - /bin/cp wordpress-native/royal-glass-ps1-native/royal-glass-ps1-native.php "$DEPLOYPATH/royal-glass-ps1-native.php"

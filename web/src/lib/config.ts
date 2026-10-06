@@ -1,6 +1,21 @@
 import { z } from "zod";
 
 const positiveInteger = z.coerce.number().int().positive();
+const emptyToUndefined = (value: unknown) => value === "" ? undefined : value;
+const httpsUrl = z.string().url().superRefine((value, context) => {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.username || url.password) {
+    context.addIssue({ code: "custom", message: "Expected an HTTPS URL without credentials." });
+  }
+});
+const httpsOrigin = httpsUrl.superRefine((value, context) => {
+  const url = new URL(value);
+  if (url.pathname !== "/" || url.search || url.hash) {
+    context.addIssue({ code: "custom", message: "Expected an HTTPS origin without a path, query, or fragment." });
+  }
+}).transform((value) => new URL(value).origin);
+const optionalHttpsUrl = z.preprocess(emptyToUndefined, httpsUrl.optional());
+const optionalHttpsOrigin = z.preprocess(emptyToUndefined, httpsOrigin.optional());
 
 const databaseConfigSchema = z.object({
   DATABASE_URL_PROD: z.string().url().startsWith("postgresql://"),
@@ -24,6 +39,8 @@ const emailConfigSchema = z.object({
 
 const applicationConfigSchema = z.object({
   APP_BASE_URL: z.string().url(),
+  PUBLIC_APPLICATION_URL: optionalHttpsUrl,
+  WORDPRESS_EMBED_ORIGIN: optionalHttpsOrigin,
 });
 
 const cronConfigSchema = z.object({
@@ -60,6 +77,12 @@ export function getEmailConfig() {
 
 export function getApplicationConfig() {
   return parse(applicationConfigSchema, process.env, "application");
+}
+
+export function parseWordPressEmbedOrigin(value: string | undefined): string | undefined {
+  const result = optionalHttpsOrigin.safeParse(value);
+  if (!result.success) throw new Error("Invalid WordPress embed origin.");
+  return result.data;
 }
 
 export function getCronConfig() {

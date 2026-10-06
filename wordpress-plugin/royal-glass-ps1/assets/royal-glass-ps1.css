@@ -1,0 +1,19 @@
+.rg-ps1-embed {
+  margin: 0;
+  width: 100%;
+}
+
+.rg-ps1-frame {
+  border: 0;
+  display: block;
+  height: 900px;
+  min-height: 320px;
+  width: 100%;
+}
+
+.rg-ps1-configuration-notice {
+  background: #fff4d6;
+  border-left: 4px solid #b7791f;
+  color: #3d2b0b;
+  padding: 1rem;
+}

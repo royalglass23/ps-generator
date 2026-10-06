@@ -9,6 +9,7 @@ import type { EmailMessage } from "@/modules/email/types";
 
 import { buildApplicationSummary } from "./application-summary";
 import { ApplicationError } from "./errors";
+import { buildResumeUrl } from "./resume-url";
 import {
   applicantEmailSchema,
   applicantNameSchema,
@@ -34,6 +35,7 @@ interface ApplicationServiceDependencies {
   createReference?: (applicationId: string, now: Date) => string;
   draftRetentionHours?: number;
   applicationBaseUrl?: string;
+  publicApplicationUrl?: string;
   email?: EmailConfiguration | (() => EmailConfiguration);
 }
 
@@ -63,6 +65,7 @@ export class ApplicationService {
   private readonly createReference: (applicationId: string, now: Date) => string;
   private readonly draftRetentionHours: number;
   private readonly applicationBaseUrl?: string;
+  private readonly publicApplicationUrl?: string;
   private readonly getEmail: () => EmailConfiguration;
 
   constructor(dependencies: ApplicationServiceDependencies) {
@@ -73,6 +76,7 @@ export class ApplicationService {
     this.createReference = dependencies.createReference ?? defaultReference;
     this.draftRetentionHours = dependencies.draftRetentionHours ?? 24;
     this.applicationBaseUrl = dependencies.applicationBaseUrl;
+    this.publicApplicationUrl = dependencies.publicApplicationUrl;
     const email =
       dependencies.email ?? {
         supportEmail: "support@royalglass.co.nz",
@@ -147,7 +151,12 @@ export class ApplicationService {
     if (!this.applicationBaseUrl) {
       throw new Error("Application base URL is not configured.");
     }
-    const resumeUrl = `${this.applicationBaseUrl.replace(/\/$/, "")}/application/${encodeURIComponent(id)}#token=${encodeURIComponent(resumeToken)}`;
+    const resumeUrl = buildResumeUrl({
+      applicationBaseUrl: this.applicationBaseUrl,
+      publicApplicationUrl: this.publicApplicationUrl,
+      applicationId: id,
+      resumeToken,
+    });
     const email = this.getEmail();
     await this.repository.enqueueEmail(
       id,
