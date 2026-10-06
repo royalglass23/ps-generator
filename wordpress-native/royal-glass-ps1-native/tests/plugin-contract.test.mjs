@@ -125,3 +125,11 @@ test("the job address field wires Google Places autocomplete with a manual-entry
   assert.match(app, /data-action="manual-address"/);
   assert.match(app, /field\("project\.address"/);
 });
+
+test("selecting a system refreshes its reference image", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(
+    app,
+    /input\.matches\('\[data-field="design\.system"\]'\)\)\s*\{[^}]*this\.render\(\)/,
+  );
+});

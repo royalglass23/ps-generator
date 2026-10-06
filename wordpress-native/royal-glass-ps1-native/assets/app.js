@@ -288,6 +288,11 @@ class Ps1Application {
   change(event) {
     const input = event.target;
     if (input.matches('[data-action="files"]')) this.addFiles(input.files);
+    if (input.matches('[data-field="design.system"]')) {
+	  this.state.design.system = input.value;
+	  this.render();
+	  return;
+	}
     if (input.matches('[data-field="applicant.role"]')) {
 	  if (!["architect", "builder"].includes(input.value)) {
 		this.state.applicant.decisionMaker = { name: "", mobile: "", email: "" };
