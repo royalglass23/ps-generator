@@ -97,6 +97,10 @@ export function nextLocationTypes(current, type) {
   return withoutPool.length >= 3 ? withoutPool : [...withoutPool, type];
 }
 
+export function uploadRemovalDisabled(status) {
+  return status === "uploading" || status === "removing";
+}
+
 function decisionMakerForRole(state) {
   if (state.applicant.role !== "architect" && state.applicant.role !== "builder") return undefined;
   return {

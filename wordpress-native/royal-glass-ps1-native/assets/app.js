@@ -5,6 +5,7 @@ import {
   initialJourneyState,
   nextLocationTypes,
   stateFromDraft,
+  uploadRemovalDisabled,
   validateInput,
   validateUpload,
 } from "./domain.mjs";
@@ -97,6 +98,12 @@ function setPath(object, path, value) {
   target[parts.at(-1)] = value;
 }
 
+function locationTypesSummary(types, options) {
+  const labels = options.filter(([value]) => types.includes(value)).map(([, label]) => label);
+  if (!labels.length) return "Select up to 3 areas";
+  return labels.length <= 2 ? labels.join(", ") : `${labels.length} areas selected`;
+}
+
 class Ps1Application {
   constructor(root) {
     this.root = root;
@@ -113,6 +120,7 @@ class Ps1Application {
     this.turnstileWidget = null;
 	this.turnstileFailed = false;
 	this.restoreFailed = false;
+    this.openLocationMenu = null;
     this.manualAddress = !config.googleMapsApiKey;
     this.addressAutocompleteFailed = false;
     this.render();
@@ -124,6 +132,7 @@ class Ps1Application {
     this.root.addEventListener("click", (event) => this.click(event));
     this.root.addEventListener("input", (event) => this.input(event));
     this.root.addEventListener("change", (event) => this.change(event));
+    this.root.addEventListener("toggle", (event) => this.toggle(event), true);
     this.root.addEventListener("focusout", (event) => this.validateField(event), true);
   }
 
@@ -250,17 +259,8 @@ class Ps1Application {
     if (action === "goto") { this.step = Number(button.dataset.step); this.error = ""; this.render(); }
     if (action === "continue") await this.continue();
     if (action === "submit") await this.submit();
-    if (action === "add-location") { this.state.site.locations.push({ types: [], environment: "", other: "" }); this.render(); }
-    if (action === "remove-location") { this.state.site.locations.splice(Number(button.dataset.index), 1); this.render(); }
-    if (action === "toggle-location") {
-      const index = Number(button.dataset.index);
-      const type = button.dataset.value;
-      const next = nextLocationTypes(this.state.site.locations[index].types, type);
-      this.state.site.locations[index].types = next;
-      if (!next.includes("other")) this.state.site.locations[index].other = "";
-      if (type === "pool-area" && next.includes(type)) this.state.site.locations = [{ ...this.state.site.locations[index], types: [type], other: "" }];
-      this.render();
-    }
+    if (action === "add-location") { this.state.site.locations.push({ types: [], environment: "", other: "" }); this.openLocationMenu = null; this.render(); }
+    if (action === "remove-location") { this.state.site.locations.splice(Number(button.dataset.index), 1); this.openLocationMenu = null; this.render(); }
     if (action === "remove-upload") await this.removeUpload(button.dataset.id);
 	if (action === "retry-turnstile") { this.turnstileFailed = false; this.error = ""; this.render(); }
 	if (action === "manual-address") { this.manualAddress = true; this.render(); }
@@ -288,6 +288,21 @@ class Ps1Application {
   change(event) {
     const input = event.target;
     if (input.matches('[data-action="files"]')) this.addFiles(input.files);
+    if (input.matches('[data-action="toggle-location"]')) {
+	  const index = Number(input.dataset.index);
+	  const type = input.dataset.value;
+	  const location = this.state.site.locations[index];
+	  const next = nextLocationTypes(location.types, type);
+	  location.types = next;
+	  if (!next.includes("other")) location.other = "";
+	  this.openLocationMenu = index;
+	  if (type === "pool-area" && next.includes(type)) {
+		this.state.site.locations = [{ ...location, types: [type], other: "" }];
+		this.openLocationMenu = 0;
+	  }
+	  this.render();
+	  return;
+	}
     if (input.matches('[data-field="design.system"]')) {
 	  this.state.design.system = input.value;
 	  this.render();
@@ -299,6 +314,14 @@ class Ps1Application {
 	  }
 	  this.render();
 	}
+  }
+
+  toggle(event) {
+    const menu = event.target.closest?.("[data-location-menu]");
+    if (!menu) return;
+    const index = Number(menu.dataset.locationMenu);
+    if (menu.open) this.openLocationMenu = index;
+    else if (this.openLocationMenu === index) this.openLocationMenu = null;
   }
 
   validateField(event) {
@@ -343,6 +366,7 @@ class Ps1Application {
   async removeUpload(id) {
     const item = this.uploads.find((entry) => entry.id === id);
     if (!item) return;
+    if (uploadRemovalDisabled(item.status)) return;
     if (item.status !== "uploaded" || !this.session) { this.uploads = this.uploads.filter((entry) => entry !== item); this.render(); return; }
     item.status = "removing"; this.render();
     try {
@@ -420,12 +444,20 @@ class Ps1Application {
     if (this.step === 3) {
       const substrates = [["timber","Timber","substrate-timber.jpg"],["concrete","Concrete","substrate-concrete.jpg"],["steel","Steel","substrate-steel.jpg"],["tile-concrete","Tile over concrete","substrate-tile.jpg"],["not_sure","Not Sure",""]];
       const locationOptions = [["deck","Deck"],["balcony","Balcony"],["stair","Stair"],["landing","Landing"],["juliet-window","Juliet window"],["entrance-facade","Entrance facade"],["pool-area","Pool area"],["other","Other"]];
-      const areas = this.state.site.locations.map((location,index)=>`<fieldset class="area"><legend>Area ${index+1}</legend>${this.state.site.locations.length>1?`<button type="button" class="text-button" data-action="remove-location" data-index="${index}">Remove</button>`:""}<div class="location-options">${locationOptions.map(([value,label])=>`<button type="button" class="location-chip${location.types.includes(value)?" selected":""}" data-action="toggle-location" data-index="${index}" data-value="${value}">${label}</button>`).join("")}</div><label class="field"><span>Environment *</span><select data-field="site.locations.${index}.environment">${option("","Select",location.environment)}${option("internal","Internal",location.environment)}${option("external","External",location.environment)}</select></label>${location.types.includes("other")?field(`site.locations.${index}.other`,"Describe the other location",location.other,"otherLocation",{required:true,maxLength:200}):""}</fieldset>`).join("");
+      const areas = this.state.site.locations.map((location,index)=>{
+        const summary = locationTypesSummary(location.types, locationOptions);
+        const choices = locationOptions.map(([value,label])=>{
+          const selected = location.types.includes(value);
+          const disabled = !selected && location.types.length >= 3 && value !== "pool-area";
+          return `<label${disabled?' class="disabled"':""}><input type="checkbox" data-action="toggle-location" data-index="${index}" data-value="${value}"${selected?" checked":""}${disabled?" disabled":""}><span>${label}</span></label>`;
+        }).join("");
+        return `<fieldset class="area"><legend>Area ${index+1}</legend>${this.state.site.locations.length>1?`<button type="button" class="text-button" data-action="remove-location" data-index="${index}">Remove</button>`:""}<div class="area-fields"><div class="radio-row area-environment" role="radiogroup" aria-labelledby="environment-label-${index}"><span id="environment-label-${index}">Is this area internal or external? *</span><label><input type="radio" name="environment-${index}" data-field="site.locations.${index}.environment" value="internal"${location.environment==="internal"?" checked":""} required> Internal</label><label><input type="radio" name="environment-${index}" data-field="site.locations.${index}.environment" value="external"${location.environment==="external"?" checked":""} required> External</label></div><details class="multi-select" data-location-menu="${index}"${this.openLocationMenu===index?" open":""}><summary><span><strong>Area type *</strong><small>${escapeHtml(summary)}</small></span></summary><div class="multi-select-options" role="group" aria-label="Area ${index+1} options">${choices}</div></details>${location.types.includes("other")?field(`site.locations.${index}.other`,"Describe the other location",location.other,"otherLocation",{required:true,maxLength:200}):""}</div></fieldset>`;
+      }).join("");
       return `<h3>What will the glass system be fixed to?</h3><div class="image-grid substrate-grid">${substrates.map(([v,t,img])=>choice("site.substrate",v,t,v==="not_sure"?"Don’t worry, our team will help you.":"",this.state.site.substrate===v,img)).join("")}</div><div class="section-head"><div><h3>Locations <small>Optional</small></h3><p>Add up to three areas if you know them. Pool area must be the only area.</p></div><button type="button" class="button secondary" data-action="add-location"${this.state.site.locations.length>=3||this.state.site.locations.some((l)=>l.types.includes("pool-area"))?" disabled":""}>Add location</button></div><div class="areas">${areas}</div>`;
     }
 
     if (this.step === 4) {
-      const files = this.uploads.map((item)=>`<div><span><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}">${escapeHtml(item.status)}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}">Remove</button></span></div>`).join("");
+      const files = this.uploads.map((item)=>`<div><span><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}">${escapeHtml(item.status)}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}"${uploadRemovalDisabled(item.status)?" disabled aria-disabled=\"true\"":""}>Remove</button></span></div>`).join("");
       return `<p class="section-intro">Add anything you already have. This section is optional.</p>${this.securityCheck()}${config.uploadsEnabled?`<label class="upload-zone${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}"><input type="file" data-action="files" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg"${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}><strong>${this.uploads.length>=5?"Maximum of 5 files reached":this.session||this.turnstileToken?"Select drawings, documents or photos":"Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label>`:`<div class="notice amber"><strong>Private uploads are not configured yet</strong><p>You can continue without documents. An administrator must configure private storage before publication.</p></div>`}<div class="file-list">${files}</div><div class="notice">Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.</div>`;
     }
 

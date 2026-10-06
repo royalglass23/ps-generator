@@ -6,6 +6,7 @@ import {
   buildSubmissionPayload,
   initialJourneyState,
   nextLocationTypes,
+  uploadRemovalDisabled,
   validateInput,
   validateUpload,
 } from "../assets/domain.mjs";
@@ -47,6 +48,18 @@ test("validates the reusable PS1 input rules", () => {
 test("preserves pool-area exclusivity", () => {
   assert.deepEqual(nextLocationTypes(["deck"], "pool-area"), ["pool-area"]);
   assert.deepEqual(nextLocationTypes(["pool-area"], "deck"), ["deck"]);
+});
+
+test("limits an area to three selected location types", () => {
+  assert.deepEqual(nextLocationTypes(["deck", "balcony", "stair"], "landing"), ["deck", "balcony", "stair"]);
+  assert.deepEqual(nextLocationTypes(["deck", "balcony", "stair"], "balcony"), ["deck", "stair"]);
+});
+
+test("prevents removal while an upload or deletion request is active", () => {
+  assert.equal(uploadRemovalDisabled("uploading"), true);
+  assert.equal(uploadRemovalDisabled("removing"), true);
+  assert.equal(uploadRemovalDisabled("uploaded"), false);
+  assert.equal(uploadRemovalDisabled("failed"), false);
 });
 
 test("builds draft and submission payloads without leaking inactive decision-maker fields", () => {
