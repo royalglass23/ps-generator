@@ -123,21 +123,13 @@
 .rg-ps1 .field-hint { margin: .15rem 0 0; color: var(--rg-muted); font-size: .76rem; }
 .rg-ps1 .text-action { width: fit-content; padding: .2rem 0; border: 0; background: transparent; color: var(--rg-teal-dark); font-size: .78rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
-.rg-ps1 .system-section-head { margin-top: 2rem; }
-.rg-ps1 .system-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
-.rg-ps1 .system-choice-grid > .system-choice:only-child { grid-column: span 2; }
-.rg-ps1 .system-choice { min-width: 0; padding: 0; overflow: hidden; display: grid; grid-template-rows: auto 1fr; border: 1px solid var(--rg-line-strong); border-radius: 4px; background: var(--rg-white); color: var(--rg-ink); text-align: left; cursor: pointer; transition: border-color .18s ease, background-color .18s ease, transform .18s cubic-bezier(.22, 1, .36, 1); }
-.rg-ps1 .system-choice:hover { transform: translateY(-2px); border-color: var(--rg-teal); }
-.rg-ps1 .system-choice.selected { border-color: var(--rg-teal); background: var(--rg-teal-pale); box-shadow: inset 0 0 0 1px var(--rg-teal); }
-.rg-ps1 .system-choice-media { min-width: 0; display: grid; grid-template-columns: 1fr; aspect-ratio: 1; overflow: hidden; background: #eef1f1; }
-.rg-ps1 .system-choice-media.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rg-ps1 .system-choice-image { min-width: 0; position: relative; overflow: hidden; }
-.rg-ps1 .system-choice-image img { object-fit: cover; }
-.rg-ps1 .system-choice-image small { padding: .28rem .38rem; position: absolute; right: .35rem; bottom: .35rem; left: .35rem; z-index: 1; border-radius: 2px; background: rgb(24 31 32 / 76%); color: var(--rg-white); font-size: .64rem; line-height: 1.25; text-align: center; }
-.rg-ps1 .system-choice-label { min-width: 0; padding: .8rem .85rem; display: grid; align-content: center; gap: .2rem; }
-.rg-ps1 .system-choice-label strong { color: var(--rg-charcoal); font-size: .86rem; font-weight: 600; line-height: 1.35; }
-.rg-ps1 .system-choice-label > span { display: flex; align-items: center; gap: .3rem; color: var(--rg-muted); font-size: .7rem; }
-.rg-ps1 .system-choice-label .system-choice-selected { color: var(--rg-teal-dark); font-weight: 600; }
+.rg-ps1 .system-select { max-width: 32rem; }
+.rg-ps1 .system-reference-card { width: min(100%, 32rem); margin: 1rem 0 0; overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; background: var(--rg-white); }
+.rg-ps1 .system-reference-image { width: 100%; position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: #eef1f1; }
+.rg-ps1 .system-reference-image img { object-fit: cover; }
+.rg-ps1 .system-reference-card figcaption { padding: .85rem 1rem; display: grid; gap: .2rem; }
+.rg-ps1 .system-reference-card strong { color: var(--rg-charcoal); font-size: .9rem; }
+.rg-ps1 .system-reference-card figcaption span { color: var(--rg-muted); font-size: .74rem; line-height: 1.45; }
 
 .rg-ps1 .security-box, .rg-ps1 .notice { margin-top: 1.4rem; padding: 1rem 1.1rem; border: 1px solid #b8d7d9; border-radius: 4px; background: var(--rg-teal-pale); }
 .rg-ps1 .security-box > p, .rg-ps1 .notice p { margin: .35rem 0 .8rem; color: var(--rg-muted); font-size: .81rem; line-height: 1.55; }
@@ -242,7 +234,7 @@
   .rg-ps1 .step-list::before, .rg-ps1 .step-list::after { display: none; }
   .rg-ps1 .step-rail button { min-width: 10.2rem; }
   .rg-ps1 .image-grid.four { grid-template-columns: repeat(2, 1fr); }
-  .rg-ps1 .design-family-grid, .rg-ps1 .system-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-ps1 .design-family-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -257,11 +249,9 @@
   .rg-ps1 .primer { width: calc(100% - 2rem); margin-bottom: 1.5rem; }
   .rg-ps1 .primer > div { padding: .9rem 1.35rem; }
   .rg-ps1 .application-layout { width: calc(100% - 1rem); }
-  .rg-ps1 .field-grid, .rg-ps1 .compact-grid, .rg-ps1 .image-grid, .rg-ps1 .design-family-grid, .rg-ps1 .system-choice-grid { grid-template-columns: 1fr; }
+  .rg-ps1 .field-grid, .rg-ps1 .compact-grid, .rg-ps1 .image-grid, .rg-ps1 .design-family-grid { grid-template-columns: 1fr; }
   .rg-ps1 .image-grid.four { grid-template-columns: 1fr; }
   .rg-ps1 .substrate-grid .choice:last-child { grid-column: auto; }
-  .rg-ps1 .system-choice-label { padding: .9rem 1rem; }
-  .rg-ps1 .system-choice-grid > .system-choice:only-child { grid-column: auto; }
   .rg-ps1 .form-card { padding: 1.15rem; }
   .rg-ps1 .form-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .rg-ps1 .button.primary { margin-left: 0; grid-column: 1 / -1; grid-row: 1; }
