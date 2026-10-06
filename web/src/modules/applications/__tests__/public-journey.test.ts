@@ -21,6 +21,11 @@ const completeState: JourneyState = {
     mobile: "021 555 0101",
     email: "aroha@example.co.nz",
     role: "architect",
+    decisionMaker: {
+      name: "Mere Homeowner",
+      mobile: "021 555 0102",
+      email: "mere@example.co.nz",
+    },
   },
   project: {
     address: "28 Example Street",
@@ -64,6 +69,7 @@ describe("public application journey", () => {
     const payload = buildSubmissionPayload(quickState);
     expect(submissionPayloadSchema.safeParse(payload).success).toBe(true);
     expect(payload.applicant.role).toBe("homeowner");
+    expect(payload.applicant).not.toHaveProperty("decisionMaker");
     expect(payload.project.stage).toBeUndefined();
     expect(payload.site.locations).toEqual([]);
   });
@@ -143,6 +149,19 @@ describe("public application journey", () => {
         applicant: { ...completeState.applicant, name: "", mobile: "", email: "not-an-email" },
       }),
     ).toBe("Enter your full name, NZ phone number, and email address.");
+  });
+
+  it("requires the homeowner or decision-maker contact for architect and builder roles", () => {
+    expect(
+      applicantDetailsError({
+        ...completeState,
+        applicant: {
+          ...completeState.applicant,
+          role: "builder",
+          decisionMaker: { name: "", mobile: "", email: "" },
+        },
+      }),
+    ).toBe("Enter the homeowner or decision-maker name, NZ phone number, and email address.");
   });
 
   it("requests a resume email for the authorized draft", async () => {

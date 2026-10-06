@@ -11,6 +11,11 @@ export interface JourneyState {
     mobile: string;
     email: string;
     role: NonNullable<NonNullable<DraftPayload["applicant"]>["role"]> | "";
+    decisionMaker: {
+      name: string;
+      mobile: string;
+      email: string;
+    };
   };
   project: {
     address: string;
@@ -57,7 +62,13 @@ type Fetcher = typeof fetch;
 
 export const initialJourneyState: JourneyState = {
   need: "ps1",
-  applicant: { name: "", mobile: "", email: "", role: "" },
+  applicant: {
+    name: "",
+    mobile: "",
+    email: "",
+    role: "",
+    decisionMaker: { name: "", mobile: "", email: "" },
+  },
   project: {
     address: "",
     buildingConsentNumber: "",
@@ -78,9 +89,30 @@ export function applicantDetailsError(state: JourneyState): string | null {
   if (!name.trim() || !mobile.trim() || !email.trim()) {
     return "Enter your full name, NZ phone number, and email address.";
   }
-  return applicationInputError("name", name)
+  const applicantError = applicationInputError("name", name)
     ?? applicationInputError("mobile", mobile)
     ?? applicationInputError("email", email);
+  if (applicantError) return applicantError;
+
+  if (state.applicant.role === "architect" || state.applicant.role === "builder") {
+    const decisionMaker = state.applicant.decisionMaker;
+    if (!decisionMaker.name.trim() || !decisionMaker.mobile.trim() || !decisionMaker.email.trim()) {
+      return "Enter the homeowner or decision-maker name, NZ phone number, and email address.";
+    }
+    return applicationInputError("name", decisionMaker.name)
+      ?? applicationInputError("mobile", decisionMaker.mobile)
+      ?? applicationInputError("email", decisionMaker.email);
+  }
+  return null;
+}
+
+function decisionMakerForRole(state: JourneyState) {
+  if (state.applicant.role !== "architect" && state.applicant.role !== "builder") return undefined;
+  return {
+    name: state.applicant.decisionMaker.name,
+    mobile: state.applicant.decisionMaker.mobile,
+    email: state.applicant.decisionMaker.email,
+  };
 }
 
 export function buildDraftPayload(state: JourneyState): DraftPayload {
@@ -91,6 +123,7 @@ export function buildDraftPayload(state: JourneyState): DraftPayload {
       mobile: state.applicant.mobile,
       email: state.applicant.email,
       role: state.applicant.role || undefined,
+      ...(decisionMakerForRole(state) ? { decisionMaker: decisionMakerForRole(state) } : {}),
     },
     project: {
       address: state.project.address,
@@ -130,6 +163,7 @@ export function buildSubmissionPayload(state: JourneyState): SubmissionPayload {
       mobile: state.applicant.mobile,
       email: state.applicant.email,
       role: state.applicant.role,
+      ...(decisionMakerForRole(state) ? { decisionMaker: decisionMakerForRole(state) } : {}),
     },
     project: {
       address: state.project.address,
@@ -233,6 +267,11 @@ export async function loadDraft(
       mobile: payload.applicant?.mobile ?? "",
       email: payload.applicant?.email ?? "",
       role: payload.applicant?.role ?? "",
+      decisionMaker: {
+        name: payload.applicant?.decisionMaker?.name ?? "",
+        mobile: payload.applicant?.decisionMaker?.mobile ?? "",
+        email: payload.applicant?.decisionMaker?.email ?? "",
+      },
     },
     project: {
       address: payload.project?.address ?? "",

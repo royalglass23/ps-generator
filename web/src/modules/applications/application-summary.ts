@@ -111,6 +111,13 @@ export function buildApplicationSummary(
     `Email: ${payload.applicant.email}`,
     `Mobile: ${payload.applicant.mobile}`,
     `Role: ${roleLabels[payload.applicant.role]}`,
+    ...(payload.applicant.decisionMaker
+      ? [
+          `Homeowner / decision maker: ${payload.applicant.decisionMaker.name}`,
+          `Homeowner / decision-maker email: ${payload.applicant.decisionMaker.email}`,
+          `Homeowner / decision-maker phone: ${payload.applicant.decisionMaker.mobile}`,
+        ]
+      : []),
     `Project address: ${payload.project.address}`,
     `Building Consent number: ${payload.project.buildingConsentNumber || "Not provided"}`,
     `Resource Consent number: ${payload.project.resourceConsentNumber || "Not provided"}`,
