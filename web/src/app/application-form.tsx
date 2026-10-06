@@ -272,7 +272,7 @@ export function SystemReferenceCard({ system, family }: {
 
   return <figure className="system-reference-card">
     <span className="system-reference-image">
-      <Image src={images[0]} alt={`Visual guide for the ${selectedSystem[1]} system`} fill sizes="(max-width: 560px) calc(100vw - 3.3rem), (max-width: 850px) calc(100vw - 6rem), 512px" />
+      <Image src={images[0]} alt={`Visual guide for the ${selectedSystem[1]} system`} fill sizes="(max-width: 560px) calc(100vw - 3.3rem), (max-width: 850px) calc(100vw - 6rem), 820px" />
     </span>
     <figcaption><strong>{selectedSystem[1]}</strong><span>Visual guide only — our team will confirm the final system.</span></figcaption>
   </figure>;

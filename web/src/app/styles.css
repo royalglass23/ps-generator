@@ -123,9 +123,9 @@
 .rg-ps1 .field-hint { margin: .15rem 0 0; color: var(--rg-muted); font-size: .76rem; }
 .rg-ps1 .text-action { width: fit-content; padding: .2rem 0; border: 0; background: transparent; color: var(--rg-teal-dark); font-size: .78rem; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
-.rg-ps1 .system-select { max-width: 32rem; }
-.rg-ps1 .system-reference-card { width: min(100%, 32rem); margin: 1rem 0 0; overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; background: var(--rg-white); }
-.rg-ps1 .system-reference-image { width: 100%; position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: #eef1f1; }
+.rg-ps1 .system-select { width: 100%; }
+.rg-ps1 .system-reference-card { width: 100%; margin: 1rem auto 0; overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; background: var(--rg-white); }
+.rg-ps1 .system-reference-image { width: 100%; height: clamp(13rem, 32vw, 19rem); position: relative; display: block; overflow: hidden; background: #eef1f1; }
 .rg-ps1 .system-reference-image img { object-fit: cover; }
 .rg-ps1 .system-reference-card figcaption { padding: .85rem 1rem; display: grid; gap: .2rem; }
 .rg-ps1 .system-reference-card strong { color: var(--rg-charcoal); font-size: .9rem; }
