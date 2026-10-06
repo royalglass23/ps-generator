@@ -126,7 +126,21 @@ const applicantDraftSchema = z.object({
   mobile: normalizedText(50).pipe(emptyOr(nzPhoneSchema)).optional(),
   email: normalizedText(400).pipe(emptyOr(applicantEmailSchema)).optional(),
   role: z.enum(applicantRoles).optional(),
-}).strict();
+  decisionMaker: z.object({
+    name: normalizedText(200).pipe(emptyOr(applicantNameSchema)).optional(),
+    mobile: normalizedText(50).pipe(emptyOr(nzPhoneSchema)).optional(),
+    email: normalizedText(400).pipe(emptyOr(applicantEmailSchema)).optional(),
+  }).strict().optional(),
+}).strict().superRefine((applicant, context) => {
+  const needsDecisionMaker = applicant.role === "architect" || applicant.role === "builder";
+  if (!needsDecisionMaker && applicant.decisionMaker) {
+    context.addIssue({
+      code: "custom",
+      path: ["decisionMaker"],
+      message: "Homeowner or decision-maker details are only accepted for architects and builders.",
+    });
+  }
+});
 
 const projectDraftSchema = z.object({
   address: normalizedText(500).pipe(emptyOr(addressSchema)).optional(),
@@ -177,14 +191,37 @@ const locationSubmissionSchema = z.object({
   }
 });
 
-export const submissionPayloadSchema = z.object({
-  need: z.enum(applicationNeeds),
-  applicant: z.object({
+const applicantSubmissionSchema = z.object({
+  name: applicantNameSchema,
+  mobile: nzPhoneSchema,
+  email: applicantEmailSchema,
+  role: z.enum(applicantRoles),
+  decisionMaker: z.object({
     name: applicantNameSchema,
     mobile: nzPhoneSchema,
     email: applicantEmailSchema,
-    role: z.enum(applicantRoles),
-  }).strict(),
+  }).strict().optional(),
+}).strict().superRefine((applicant, context) => {
+  const needsDecisionMaker = applicant.role === "architect" || applicant.role === "builder";
+  if (needsDecisionMaker && !applicant.decisionMaker) {
+    context.addIssue({
+      code: "custom",
+      path: ["decisionMaker"],
+      message: "Enter the homeowner or decision-maker contact details.",
+    });
+  }
+  if (!needsDecisionMaker && applicant.decisionMaker) {
+    context.addIssue({
+      code: "custom",
+      path: ["decisionMaker"],
+      message: "Homeowner or decision-maker details are only accepted for architects and builders.",
+    });
+  }
+});
+
+export const submissionPayloadSchema = z.object({
+  need: z.enum(applicationNeeds),
+  applicant: applicantSubmissionSchema,
   project: z.object({
     address: addressSchema,
     buildingConsentNumber: optionalConsentNumberSchema.default(""),

@@ -9,6 +9,11 @@ const validSubmission = {
     mobile: "+64 21 555 0101",
     email: "aroha@example.co.nz",
     role: "architect",
+    decisionMaker: {
+      name: "Mere Homeowner",
+      mobile: "021 555 0102",
+      email: "mere@example.co.nz",
+    },
   },
   project: {
     address: "28 Example Street, Auckland 1010",
@@ -85,6 +90,57 @@ describe("application input schemas", () => {
     expect(draftPayloadSchema.safeParse({ design: { system: "invented" } }).success).toBe(false);
     expect(
       draftPayloadSchema.safeParse({ site: { locations: [{ types: ["invented"] }] } }).success,
+    ).toBe(false);
+  });
+
+  it("requires a validated homeowner or decision-maker contact for architects and builders", () => {
+    const withoutDecisionMaker = {
+      ...validSubmission,
+      applicant: { ...validSubmission.applicant, decisionMaker: undefined },
+    };
+
+    expect(submissionPayloadSchema.safeParse(withoutDecisionMaker).success).toBe(false);
+    expect(
+      submissionPayloadSchema.safeParse({
+        ...validSubmission,
+        applicant: {
+          ...validSubmission.applicant,
+          role: "builder",
+          decisionMaker: {
+            name: "<script>Owner</script>",
+            mobile: "+61 2 5550 1010",
+            email: "not-an-email",
+          },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects hidden homeowner or decision-maker details for roles that do not need them", () => {
+    expect(
+      submissionPayloadSchema.safeParse({
+        ...validSubmission,
+        applicant: { ...validSubmission.applicant, role: "homeowner" },
+      }).success,
+    ).toBe(false);
+    expect(
+      submissionPayloadSchema.safeParse({
+        ...validSubmission,
+        applicant: {
+          name: validSubmission.applicant.name,
+          mobile: validSubmission.applicant.mobile,
+          email: validSubmission.applicant.email,
+          role: "developer",
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      draftPayloadSchema.safeParse({
+        applicant: {
+          role: "developer",
+          decisionMaker: { name: "Mere Homeowner" },
+        },
+      }).success,
     ).toBe(false);
   });
 

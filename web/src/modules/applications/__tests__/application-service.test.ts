@@ -203,7 +203,15 @@ describe("ApplicationService", () => {
 
     await service.submit(created.id, created.resumeToken, {
       ...validSubmission,
-      applicant: { ...validSubmission.applicant, role: "architect" },
+      applicant: {
+        ...validSubmission.applicant,
+        role: "architect",
+        decisionMaker: {
+          name: "Mere Homeowner",
+          mobile: "021 555 0102",
+          email: "mere@example.co.nz",
+        },
+      },
       project: {
         ...validSubmission.project,
         estimatedInstallation: "not_sure",
@@ -218,6 +226,9 @@ describe("ApplicationService", () => {
 
     for (const message of repository.outbox) {
       expect(message.text).toContain("Role: Architect / Designer");
+      expect(message.text).toContain("Homeowner / decision maker: Mere Homeowner");
+      expect(message.text).toContain("Homeowner / decision-maker email: mere@example.co.nz");
+      expect(message.text).toContain("Homeowner / decision-maker phone: 021 555 0102");
       expect(message.text).toContain("Estimated installation: Not sure");
       expect(message.text).toContain("Project stage: Not provided");
       expect(message.text).toContain("Request: I need a PS1");
