@@ -133,3 +133,20 @@ test("selecting a system refreshes its reference image", async () => {
     /input\.matches\('\[data-field="design\.system"\]'\)\)\s*\{[^}]*this\.render\(\)/,
   );
 });
+
+test("site areas use radio environments and a multi-select limited to three choices", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(app, /class="radio-row area-environment"/);
+  assert.match(app, /type="radio"[^>]*value="internal"/);
+  assert.match(app, /type="radio"[^>]*value="external"/);
+  assert.match(app, /<details class="multi-select"/);
+  assert.match(app, /type="checkbox"[^>]*data-action="toggle-location"/);
+  assert.match(app, /location\.types\.length >= 3/);
+  assert.doesNotMatch(app, /<select data-field="site\.locations\.\$\{index\}\.environment"/);
+});
+
+test("active upload removal is blocked in both the handler and rendered control", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(app, /removeUpload\(id\)[\s\S]*?uploadRemovalDisabled\(item\.status\)[\s\S]*?return/);
+  assert.match(app, /data-action="remove-upload"[^>]*uploadRemovalDisabled\(item\.status\)/);
+});
