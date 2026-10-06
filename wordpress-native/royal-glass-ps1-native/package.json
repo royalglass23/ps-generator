@@ -1,0 +1,11 @@
+{
+  "name": "royal-glass-ps1-native",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check:js": "node --check assets/app.js && node --check assets/domain.mjs",
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1"
+  }
+}

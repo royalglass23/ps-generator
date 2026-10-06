@@ -1,0 +1,105 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const root = new URL("../", import.meta.url);
+
+test("plugin exposes a direct shortcode and WordPress REST namespace without an iframe", async () => {
+  const source = await readFile(new URL("royal-glass-ps1-native.php", root), "utf8");
+  assert.match(source, /add_shortcode\(\s*['\"]royal_glass_ps1['\"]/);
+  assert.match(source, /royal-glass-ps1\/v1/);
+  assert.doesNotMatch(source, /<iframe\b/i);
+});
+
+test("plugin defines dedicated persistence, retention, and mail-outbox tables", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-database.php", root), "utf8");
+  for (const table of ["applications", "uploads", "email_outbox", "rate_limits"]) {
+    assert.match(source, new RegExp(`rg_ps1_${table}`));
+  }
+  assert.match(source, /dbDelta\s*\(/);
+});
+
+test("private upload implementation blocks direct web access", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
+  assert.match(source, /RG_PS1_PRIVATE_UPLOAD_DIR/);
+  assert.match(source, /deny from all/i);
+  assert.match(source, /index\.php/);
+});
+
+test("bearer credentials are hashed and compared in constant time", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
+  assert.match(source, /hash\(\s*['\"]sha256['\"]/);
+  assert.match(source, /hash_equals\s*\(/);
+});
+
+test("resumed drafts expose existing upload metadata without exposing storage paths", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
+  assert.match(source, /'uploads'\s*=>\s*array_map/);
+  assert.match(source, /'sizeBytes'\s*=>/);
+  assert.doesNotMatch(source, /'storedName'\s*=>/);
+});
+
+test("module script loading is explicit and upload deletion verifies the file is gone", async () => {
+  const plugin = await readFile(new URL("royal-glass-ps1-native.php", root), "utf8");
+  const storage = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
+  assert.match(plugin, /script_loader_tag/);
+  assert.match(plugin, /type="module"/);
+  assert.match(storage, /wp_delete_file\s*\(/);
+  assert.match(storage, /!\s*file_exists\s*\(/);
+});
+
+test("PHP signatures stay compatible with the declared PHP 8.1 minimum", async () => {
+  const service = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
+  const rest = await readFile(new URL("includes/class-rg-ps1-rest-controller.php", root), "utf8");
+  assert.doesNotMatch(`${service}\n${rest}`, /:\s*true\|/);
+});
+
+test("editing a field refreshes the current action state without replacing the focused input", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(app, /input\(event\)[\s\S]*?this\.refreshActionState\(\)/);
+  assert.match(app, /refreshActionState\(\)[\s\S]*?continueButton\.disabled\s*=\s*this\.busy\s*\|\|\s*!this\.stepValid\(\)/);
+	assert.match(app, /input\.matches\('\[data-field="applicant\.role"\]'\)[\s\S]*?this\.render\(\)/);
+});
+
+test("a Turnstile load failure stops automatic remounting and offers an explicit retry", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(app, /this\.turnstileFailed\s*=\s*true/);
+  assert.match(app, /data-action="retry-turnstile"/);
+  assert.match(app, /if \(this\.turnstileFailed\)/);
+	assert.match(app, /window\.turnstile\.remove\(this\.turnstileWidget\)/);
+});
+
+test("the packaging script produces a checksum without requiring optional PowerShell cmdlets", async () => {
+  const script = await readFile(new URL("scripts/package.ps1", root), "utf8");
+  assert.match(script, /System\.Security\.Cryptography\.SHA256/);
+  assert.doesNotMatch(script, /Get-FileHash/);
+});
+
+test("strict-risk persistence repairs remain wired", async () => {
+  const database = await readFile(new URL("includes/class-rg-ps1-database.php", root), "utf8");
+  const service = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
+  assert.match(service, /transaction\([\s\S]*?upload_capacity_for_update/);
+  assert.match(database, /FOR UPDATE/);
+  assert.match(service, /consume_limit\(\s*'resume_email'/);
+  assert.match(database, /RATE_LIMIT_PERSISTENCE_FAILED/);
+  assert.match(database, /MAX_EMAIL_ATTEMPTS/);
+  assert.match(database, /delete_draft_resume_emails/);
+	assert.match(database, /outbox\.kind <> 'draft_resume'[\s\S]*?application\.draft_expires_at >= %s/);
+  assert.match(database, /'draft' === \$current\['status'\]/);
+});
+
+test("private storage rejects public paths and verifies denial files", async () => {
+  const storage = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
+  assert.match(storage, /array\( ABSPATH, WP_CONTENT_DIR \)/);
+  assert.match(storage, /realpath\s*\(/);
+  assert.match(storage, /hash_equals\( \$deny/);
+});
+
+test("return-later and recovery paths are explicit", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(app, /data-action="save-later"/);
+  assert.match(app, /\/resume-link/);
+  assert.match(app, /finally \{[\s\S]*?this\.busy = false/);
+  assert.match(app, /data-action="restart"/);
+  assert.match(app, /this\.turnstileToken = "";[\s\S]*?throw error/);
+});

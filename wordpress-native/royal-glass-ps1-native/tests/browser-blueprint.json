@@ -1,0 +1,14 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/ps1-test/",
+  "steps": [
+    {
+      "step": "activatePlugin",
+      "pluginPath": "/wordpress/wp-content/plugins/royal-glass-ps1-native/royal-glass-ps1-native.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'PS1 Test', 'post_name' => 'ps1-test', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '[royal_glass_ps1]')); ?>"
+    }
+  ]
+}
