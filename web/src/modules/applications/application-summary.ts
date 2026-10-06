@@ -38,6 +38,8 @@ const needLabels: Record<SubmissionPayload["need"], string> = {
 const familyLabels: Record<SubmissionPayload["design"]["family"], string> = {
   balustrade: "Glass balustrade",
   pool: "Pool fence",
+  aluminium: "Aluminium balustrade",
+  canopy: "Canopy",
   not_sure: "Not sure",
 };
 
@@ -45,7 +47,7 @@ const systemLabels: Record<string, string> = {
   "double-disc": "Double Disc",
   hidden: "Hidden Face",
   "jh-clamp": "JH Clamp",
-  "juralco-canopy": "Juralco Canopy",
+  "juralco-canopy": "Juralco EDGE Canopy",
   lugano: "Lugano",
   "mini-post": "Mini Post",
   "mp-sp14": "Mini Post SP14",

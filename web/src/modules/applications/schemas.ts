@@ -7,7 +7,7 @@ export const projectStages = [
   "consent_approved", "construction", "existing", "other",
 ] as const;
 export const installationWindows = ["asap", "3_months", "6_months", "1_year", "2_years", "not_sure"] as const;
-export const designFamilies = ["balustrade", "pool", "not_sure"] as const;
+export const designFamilies = ["balustrade", "pool", "aluminium", "canopy", "not_sure"] as const;
 export const applicationSystems = [
   "double-disc", "hidden", "jh-clamp", "juralco-canopy", "lugano", "mini-post",
   "mp-sp14", "side-channel", "top-channel", "unex-ascot", "unex-metropolis",

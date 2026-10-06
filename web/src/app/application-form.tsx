@@ -54,7 +54,7 @@ const stepLabels = applicationStepLabels;
 
 const systems = [
   ["double-disc", "Double Disc"], ["hidden", "Hidden Face"], ["jh-clamp", "JH Clamp"],
-  ["juralco-canopy", "Juralco Canopy"], ["lugano", "Lugano"], ["mini-post", "Mini Post"],
+  ["juralco-canopy", "Juralco EDGE Canopy"], ["lugano", "Lugano"], ["mini-post", "Mini Post"],
   ["mp-sp14", "Mini Post SP14"], ["side-channel", "Side Mount Channel"],
   ["top-channel", "Top Mount Channel"], ["unex-ascot", "Unex Ascot"],
   ["unex-metropolis", "Unex Metropolis"], ["viking-aluminium", "Viking Aluminium"],
@@ -62,6 +62,7 @@ const systems = [
 ] as const;
 
 type SystemId = (typeof systems)[number][0];
+type DesignFamily = JourneyState["design"]["family"];
 
 type UploadItem = {
   clientId: string;
@@ -70,22 +71,42 @@ type UploadItem = {
   uploaded?: UploadedFile;
 };
 
-const systemReferenceImages: Partial<Record<SystemId, string>> = {
-  "double-disc": "/assets/fix-standoff.jpg",
-  hidden: "/assets/fix-standoff.jpg",
-  "jh-clamp": "/assets/fix-standoff.jpg",
-  "juralco-canopy": "/assets/not-sure.jpg",
-  lugano: "/assets/fix-standoff.jpg",
-  "mini-post": "/assets/fix-spigots.jpg",
-  "mp-sp14": "/assets/fix-spigots.jpg",
-  "side-channel": "/assets/fix-channel.jpg",
-  "top-channel": "/assets/fix-channel.jpg",
-  "unex-ascot": "/assets/not-sure.jpg",
-  "unex-metropolis": "/assets/not-sure.jpg",
-  "viking-aluminium": "/assets/not-sure.jpg",
-  "viking-glass": "/assets/not-sure.jpg",
-  vista: "/assets/not-sure.jpg",
+const systemReferenceImages: Record<SystemId, { balustrade?: string; pool?: string; canopy?: readonly string[] }> = {
+  "double-disc": { balustrade: "/assets/systems/ai/double-disc-balustrade-v1.png", pool: "/assets/systems/ai/double-disc-pool-v1.png" },
+  hidden: { balustrade: "/assets/systems/ai/hidden-face-balustrade-v1.png", pool: "/assets/systems/ai/hidden-face-pool-v1.png" },
+  "jh-clamp": { balustrade: "/assets/systems/ai/jh-clamp-balustrade-v1.png", pool: "/assets/systems/ai/jh-clamp-pool-v1.png" },
+  "juralco-canopy": { canopy: ["/assets/systems/ai/juralco-canopy-residential-v1.png", "/assets/systems/ai/juralco-canopy-commercial-v1.png"] },
+  lugano: { balustrade: "/assets/systems/ai/lugano-balustrade-v1.png", pool: "/assets/systems/ai/lugano-pool-v1.png" },
+  "mini-post": { balustrade: "/assets/systems/ai/mini-post-balustrade-v1.png", pool: "/assets/systems/ai/mini-post-pool-v1.png" },
+  "mp-sp14": { balustrade: "/assets/systems/ai/mini-post-sp14-balustrade-v1.png", pool: "/assets/systems/ai/mini-post-sp14-pool-v1.png" },
+  "side-channel": { balustrade: "/assets/systems/ai/side-mount-channel-balustrade-v1.png", pool: "/assets/systems/ai/side-mount-channel-pool-v1.png" },
+  "top-channel": { balustrade: "/assets/systems/ai/top-mount-channel-balustrade-v1.png", pool: "/assets/systems/ai/top-mount-channel-pool-v1.png" },
+  "unex-ascot": { balustrade: "/assets/systems/ai/unex-ascot-balustrade-v1.png", pool: "/assets/systems/ai/unex-ascot-pool-v1.png" },
+  "unex-metropolis": { balustrade: "/assets/systems/ai/unex-metropolis-balustrade-v1.png", pool: "/assets/systems/ai/unex-metropolis-pool-v1.png" },
+  "viking-aluminium": { balustrade: "/assets/systems/ai/viking-aluminium-balustrade-v1.png", pool: "/assets/systems/ai/viking-aluminium-pool-v1.png" },
+  "viking-glass": { balustrade: "/assets/systems/ai/viking-glass-balustrade-v1.png", pool: "/assets/systems/ai/viking-glass-pool-v1.png" },
+  vista: { balustrade: "/assets/systems/ai/vista-balustrade-v1.png", pool: "/assets/systems/ai/vista-pool-v1.png" },
+  "not-sure": { balustrade: "/assets/systems/ai/not-sure-balustrade-v1.png", pool: "/assets/systems/ai/not-sure-pool-v1.png" },
 };
+
+const systemsByFamily: Record<Exclude<DesignFamily, "not_sure" | "">, readonly SystemId[]> = {
+  balustrade: ["double-disc", "hidden", "jh-clamp", "lugano", "mini-post", "mp-sp14", "side-channel", "top-channel", "unex-metropolis", "viking-glass", "vista"],
+  pool: ["double-disc", "hidden", "jh-clamp", "lugano", "mini-post", "mp-sp14", "side-channel", "top-channel", "unex-ascot", "unex-metropolis", "viking-aluminium", "viking-glass", "vista"],
+  aluminium: ["unex-ascot", "viking-aluminium"],
+  canopy: ["juralco-canopy"],
+};
+
+export function getSystemsForFamily(family: DesignFamily): readonly SystemId[] {
+  if (!family || family === "not_sure") return [];
+  return systemsByFamily[family];
+}
+
+export function getSystemReferenceImages(system: SystemId, family: DesignFamily): readonly string[] {
+  const references = systemReferenceImages[system];
+  if (family === "canopy") return references.canopy ?? [];
+  if (family === "pool") return references.pool ? [references.pool] : [];
+  return references.balustrade ? [references.balustrade] : [];
+}
 
 const locationOptions = [
   ["deck", "Deck"], ["balcony", "Balcony"], ["stair", "Stair"], ["landing", "Landing"],
@@ -206,7 +227,7 @@ function CheckIcon({ className = "" }: { className?: string }) {
 
 function Choice({ selected, title, description, onClick, image }: { selected: boolean; title: string; description?: string; onClick: () => void; image?: string }) {
   return <button type="button" className={`choice ${selected ? "selected" : ""}`} onClick={onClick} aria-pressed={selected}>
-    {image ? <span className="choice-image"><Image src={image} alt="" fill loading="eager" sizes="(max-width: 560px) calc(100vw - 4rem), (max-width: 850px) 45vw, 260px" /></span> : null}<span><strong>{title}{selected ? <CheckIcon /> : null}</strong>{description ? <small>{description}</small> : null}</span>
+    {image ? <span className="choice-image"><Image src={image} alt="" fill sizes="(max-width: 560px) calc(100vw - 3.3rem), (max-width: 850px) calc((100vw - 4.5rem) / 2), 260px" /></span> : null}<span><strong>{title}{selected ? <CheckIcon /> : null}</strong>{description ? <small>{description}</small> : null}</span>
   </button>;
 }
 
@@ -240,19 +261,23 @@ export function LocationAreaFields({ index, location, onChange, onToggle }: {
   </div>;
 }
 
-export function SystemReferenceCard({ system }: { system: string }) {
+export function SystemReferenceCard({ system, family, selected, onSelect }: {
+  system: SystemId;
+  family: DesignFamily;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const selectedSystem = systems.find(([value]) => value === system);
-  const image = systemReferenceImages[system as SystemId];
+  const images = getSystemReferenceImages(system, family);
 
-  if (!selectedSystem || !image || system === "not-sure") return null;
+  if (!selectedSystem || images.length === 0) return null;
 
-  return <figure className="system-reference-card">
-    <Image src={image} alt={`Reference view of the ${selectedSystem[1]} system`} width={1040} height={480} />
-    <figcaption>
-      <strong>{selectedSystem[1]}</strong>
-      <span>Representative prototype image — replace with the approved system photo.</span>
-    </figcaption>
-  </figure>;
+  return <button type="button" className={`system-choice ${selected ? "selected" : ""}`} onClick={onSelect} aria-pressed={selected}>
+    <span className={`system-choice-media ${images.length > 1 ? "split" : ""}`}>
+      {images.map((image, index) => <span className="system-choice-image" key={image}><Image src={image} alt="" fill sizes="(max-width: 560px) calc(100vw - 3.3rem), (max-width: 850px) calc((100vw - 4.5rem) / 2), 260px" />{images.length > 1 ? <small>{index === 0 ? "Aluminium slat" : "Glass canopy"}</small> : null}</span>)}
+    </span>
+    <span className="system-choice-label"><strong>{selectedSystem[1]}</strong>{selected ? <span className="system-choice-selected"><CheckIcon /> Selected</span> : <span>Choose system</span>}</span>
+  </button>;
 }
 
 export function ApplicationSuccess({ reference, email }: { reference?: string; email?: string }) {
@@ -547,7 +572,16 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
   }
 
   function designStep() {
-    return <><h3>Is this a glass balustrade or pool fence?</h3><div className="image-grid design-family-grid"><Choice selected={state.design.family === "balustrade"} title="Glass balustrade" description="Decks, balconies, stairs, landings and other barriers." image="/assets/fix-spigots.jpg" onClick={() => patch("design", { family: "balustrade", system: "" })} /><Choice selected={state.design.family === "pool"} title="Pool fence" description="Glass fencing around a swimming pool." image="/assets/use-pool.jpg" onClick={() => patch("design", { family: "pool", system: "" })} /><Choice selected={state.design.family === "not_sure"} title="Not sure" description="Royal Glass can identify the right project type." onClick={() => patch("design", { family: "not_sure", system: "not-sure" })} /></div><label className="field full"><span>Royal Glass system *</span><select value={state.design.system} onChange={(event) => patch("design", { ...state.design, system: event.target.value as JourneyState["design"]["system"] })}><option value="">Select a system</option>{systems.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><SystemReferenceCard system={state.design.system} />{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the documents section if you have one.</div> : null}</>;
+    const familyChoices = [
+      ["balustrade", "Glass balustrade", "Decks, balconies, stairs, landings and other barriers.", "/assets/systems/ai/double-disc-balustrade-v1.png"],
+      ["pool", "Pool fence", "Glass or aluminium fencing around a swimming pool.", "/assets/systems/ai/double-disc-pool-v1.png"],
+      ["aluminium", "Aluminium balustrade", "Framed aluminium barriers for decks and balconies.", "/assets/systems/ai/viking-aluminium-balustrade-v1.png"],
+      ["canopy", "Canopy", "Juralco EDGE glass or aluminium slat canopies.", "/assets/systems/ai/juralco-canopy-commercial-v1.png"],
+      ["not_sure", "Not sure", "Royal Glass can identify the right project type.", "/assets/systems/ai/not-sure-balustrade-v1.png"],
+    ] as const;
+    const availableSystems = getSystemsForFamily(state.design.family);
+
+    return <><h3>What type of system is this?</h3><p className="section-intro">Choose the closest application, then select the picture that looks most like your system.</p><div className="design-family-grid">{familyChoices.map(([family, title, description, image]) => <Choice key={family} selected={state.design.family === family} title={title} description={description} image={image} onClick={() => patch("design", { family, system: family === "not_sure" ? "not-sure" : "" })} />)}</div>{availableSystems.length ? <><div className="section-head system-section-head"><div><h3>Choose the Royal Glass system *</h3><p>The image is a visual guide. Our team will confirm the final system from your plans and site details.</p></div></div><div className="system-choice-grid">{availableSystems.map((system) => <SystemReferenceCard key={system} system={system} family={state.design.family} selected={state.design.system === system} onSelect={() => patch("design", { ...state.design, system })} />)}</div></> : null}{state.design.system === "not-sure" ? <div className="notice">No problem. Add a photo, drawing, sketch or inspiration image in the documents section if you have one.</div> : null}</>;
   }
 
   function siteStep() {
