@@ -2,6 +2,9 @@
 
 .rg-ps1-host { margin: 0; background: #fafafb; }
 
+body:has(.rg-ps1-native-root) #masthead { transition: background-color .25s ease; }
+body.rg-ps1-nav-scrolled #masthead { background-color: #3d3d3d !important; }
+
 .rg-ps1 {
   --rg-charcoal: #272c2e;
   --rg-ink: #3a3a3a;
@@ -37,9 +40,6 @@
 .rg-ps1 .portal-masthead { min-height: 23rem; position: relative; display: grid; align-items: center; overflow: hidden; color: var(--rg-white); background-color: var(--rg-charcoal); background-image: url("brand/royal-glass-hero.jpg"); background-position: center 56%; background-size: cover; }
 .rg-ps1 .masthead-shade { position: absolute; inset: 0; background: rgb(18 28 29 / 68%); }
 .rg-ps1 .masthead-content { width: min(1180px, calc(100% - 3rem)); margin: 0 auto; padding: 1.6rem 0 2.25rem; position: relative; z-index: 1; }
-.rg-ps1 .masthead-meta { margin-bottom: 1.85rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
-.rg-ps1 .brand-logo { width: 150px; height: auto; display: block; }
-.rg-ps1 .masthead-meta p { margin: 0; color: rgb(255 255 255 / 82%); font-size: .82rem; }
 .rg-ps1 .portal-masthead h1 { max-width: 800px; margin: 0; color: var(--rg-white); font-size: clamp(1.65rem, 3vw, 2.15rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; text-wrap: balance; }
 .rg-ps1 .masthead-intro, .rg-ps1 .success-masthead .masthead-content > p { max-width: 710px; margin: 1.15rem 0 0; color: rgb(255 255 255 / 88%); font-size: clamp(1rem, 1.5vw, 1.12rem); line-height: 1.7; }
 .rg-ps1 .hero-progress { max-width: 710px; margin-top: 2rem; }
@@ -224,7 +224,6 @@
 @media (max-width: 850px) {
   .rg-ps1 .masthead-content, .rg-ps1 .primer, .rg-ps1 .application-layout { width: min(100% - 2rem, 1180px); }
   .rg-ps1 .portal-masthead { min-height: 23rem; }
-  .rg-ps1 .masthead-meta { margin-bottom: 1.85rem; }
   .rg-ps1 .primer { grid-template-columns: 1fr; }
   .rg-ps1 .primer > div { min-height: 0; }
   .rg-ps1 .primer > div + div { border-top: 1px solid var(--rg-line); border-left: 0; }
@@ -243,9 +242,6 @@
   .rg-ps1 .portal-shell { padding-bottom: 2.5rem; }
   .rg-ps1 .portal-masthead { min-height: 24rem; background-position: 60% center; }
   .rg-ps1 .masthead-content { width: min(100% - 2rem, 1180px); padding: 1.25rem 0 2.1rem; }
-  .rg-ps1 .brand-logo { width: 122px; }
-  .rg-ps1 .masthead-meta { margin-bottom: 2.1rem; align-items: flex-start; }
-  .rg-ps1 .masthead-meta p { max-width: 9.5rem; text-align: right; }
   .rg-ps1 .portal-masthead h1 { font-size: clamp(1.65rem, 8vw, 2.15rem); }
   .rg-ps1 .masthead-intro { font-size: .96rem; }
   .rg-ps1 .primer { width: calc(100% - 2rem); margin-bottom: 1.5rem; }

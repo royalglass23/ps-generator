@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Royal Glass PS1 Application (Native)
  * Description: Runs the Royal Glass PS1 application directly in WordPress without an iframe or external application host.
- * Version: 0.1.0
+ * Version: 0.1.2
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Royal Glass
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RG_PS1_NATIVE_VERSION', '0.1.0' );
+define( 'RG_PS1_NATIVE_VERSION', '0.1.2' );
 define( 'RG_PS1_NATIVE_FILE', __FILE__ );
 define( 'RG_PS1_NATIVE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RG_PS1_NATIVE_URL', plugin_dir_url( __FILE__ ) );
@@ -94,6 +94,7 @@ final class RG_PS1_Native_Plugin {
 			'assetUrl'         => esc_url_raw( RG_PS1_NATIVE_URL . 'assets/' ),
 			'homeUrl'          => esc_url_raw( home_url( '/' ) ),
 			'turnstileSiteKey' => defined( 'RG_PS1_TURNSTILE_SITE_KEY' ) ? (string) RG_PS1_TURNSTILE_SITE_KEY : '',
+			'googleMapsApiKey' => defined( 'RG_PS1_GOOGLE_MAPS_API_KEY' ) ? (string) RG_PS1_GOOGLE_MAPS_API_KEY : '',
 			'draftId'          => isset( $_GET['application'] ) ? sanitize_text_field( wp_unslash( $_GET['application'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			'uploadsEnabled'   => $this->storage->is_configured(),
 		);
@@ -117,7 +118,7 @@ final class RG_PS1_Native_Plugin {
 			return;
 		}
 		$missing = array();
-		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_SERVICEM8_EMAIL' ) as $constant ) {
+		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_GOOGLE_MAPS_API_KEY', 'RG_PS1_SERVICEM8_EMAIL' ) as $constant ) {
 			if ( ! defined( $constant ) || '' === (string) constant( $constant ) ) {
 				$missing[] = $constant;
 			}

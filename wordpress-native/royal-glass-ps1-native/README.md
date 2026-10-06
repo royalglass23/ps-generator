@@ -6,7 +6,7 @@ This is a separate WordPress-native implementation of the Royal Glass PS1 applic
 
 - `[royal_glass_ps1]` renders the application directly in the WordPress page—there is no iframe.
 - Anonymous REST routes under `/wp-json/royal-glass-ps1/v1/` create, save, restore, upload, and submit drafts.
-- The address remains an editable manual field. The original Google Places autocomplete was deliberately omitted so this native package has no Google Maps dependency; add it later only if a WordPress-managed API key and manual fallback are both required.
+- The job address uses Google Places suggestions restricted to New Zealand when a WordPress-managed browser key is configured. Manual address entry remains available and becomes the automatic fallback if Google cannot load.
 - Dedicated WordPress tables store applications, private-upload metadata, rate-limit buckets, status history, and a durable email outbox.
 - Resume tokens are generated from 32 random bytes; only SHA-256 hashes are stored. Resume links put the bearer token in the URL fragment, and the browser removes that fragment after capturing it.
 - Submission locking and email queueing occur in one database transaction.
@@ -25,11 +25,14 @@ define( 'RG_PS1_PRIVATE_UPLOAD_DIR', '/home/ACCOUNT/rg-ps1-private' );
 define( 'RG_PS1_RATE_LIMIT_SECRET', 'at-least-32-random-characters' );
 define( 'RG_PS1_TURNSTILE_SITE_KEY', 'public-site-key' );
 define( 'RG_PS1_TURNSTILE_SECRET_KEY', 'private-secret-key' );
+define( 'RG_PS1_GOOGLE_MAPS_API_KEY', 'browser-key-restricted-to-royalglass.co.nz' );
 define( 'RG_PS1_SERVICEM8_EMAIL', 'the-approved-servicem8-inbox@example.com' );
 define( 'RG_PS1_SUPPORT_EMAIL', 'support@royalglass.co.nz' );
 ```
 
 `RG_PS1_PRIVATE_UPLOAD_DIR` should point outside the public web root and must be writable by PHP. Uploads remain disabled until it is configured. The plugin also writes `.htaccess` and `index.php` denial files as defence in depth, but those files are not a substitute for storage outside the web root.
+
+`RG_PS1_GOOGLE_MAPS_API_KEY` is a browser key, so it is intentionally sent to the page. Restrict it in Google Cloud to the Maps JavaScript API and Places API (New), and to the production referrer `https://royalglass.co.nz/*` (plus any explicit staging origin used for testing).
 
 The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin queues both the ServiceM8/support message and applicant confirmation before it locks the application, then retries failed messages through the outbox.
 

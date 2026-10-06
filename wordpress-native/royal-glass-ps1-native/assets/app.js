@@ -37,6 +37,37 @@ const systemImages = {
   "top-channel": "top-mount-channel", "unex-ascot": "unex-ascot", "unex-metropolis": "unex-metropolis",
   "viking-aluminium": "viking-aluminium", "viking-glass": "viking-glass", vista: "vista",
 };
+let googleMapsLoader = null;
+
+function loadGoogleMaps() {
+  if (window.google?.maps?.importLibrary) return Promise.resolve(window.google.maps);
+  if (!config.googleMapsApiKey) return Promise.reject(new Error("Google Maps is not configured."));
+  if (googleMapsLoader) return googleMapsLoader;
+
+  googleMapsLoader = new Promise((resolve, reject) => {
+    const callbackName = "rgPs1GoogleMapsReady";
+    const script = document.createElement("script");
+    const url = new URL("https://maps.googleapis.com/maps/api/js");
+    url.searchParams.set("key", config.googleMapsApiKey);
+    url.searchParams.set("loading", "async");
+    url.searchParams.set("v", "weekly");
+    url.searchParams.set("callback", callbackName);
+    window[callbackName] = () => {
+      delete window[callbackName];
+      resolve(window.google.maps);
+    };
+    script.src = url.toString();
+    script.async = true;
+    script.dataset.rgPs1GoogleMaps = "true";
+    script.addEventListener("error", () => {
+      delete window[callbackName];
+      reject(new Error("Google Maps could not load."));
+    }, { once: true });
+    document.head.append(script);
+  });
+
+  return googleMapsLoader;
+}
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" })[char]);
@@ -47,8 +78,8 @@ function option(value, label, selected) {
 }
 
 function field(path, label, value, validation, options = {}) {
-  const { type = "text", required = false, placeholder = "", maxLength = "", inputMode = "" } = options;
-  return `<label class="field"><span>${escapeHtml(label)}${required ? " *" : ""}</span><input data-field="${path}" data-validation="${validation}" type="${type}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"${maxLength ? ` maxlength="${maxLength}"` : ""}${inputMode ? ` inputmode="${inputMode}"` : ""}${required ? " required" : ""}><small class="field-warning" data-error-for="${path}" hidden></small></label>`;
+  const { type = "text", required = false, placeholder = "", maxLength = "", inputMode = "", autoComplete = "" } = options;
+  return `<label class="field"><span>${escapeHtml(label)}${required ? " *" : ""}</span><input data-field="${path}" data-validation="${validation}" type="${type}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"${maxLength ? ` maxlength="${maxLength}"` : ""}${inputMode ? ` inputmode="${inputMode}"` : ""}${autoComplete ? ` autocomplete="${escapeHtml(autoComplete)}"` : ""}${required ? " required" : ""}><small class="field-warning" data-error-for="${path}" hidden></small></label>`;
 }
 
 function choice(path, value, title, description, selected, image = "") {
@@ -82,6 +113,8 @@ class Ps1Application {
     this.turnstileWidget = null;
 	this.turnstileFailed = false;
 	this.restoreFailed = false;
+    this.manualAddress = !config.googleMapsApiKey;
+    this.addressAutocompleteFailed = false;
     this.render();
     this.bind();
 	this.restore();
@@ -230,6 +263,7 @@ class Ps1Application {
     }
     if (action === "remove-upload") await this.removeUpload(button.dataset.id);
 	if (action === "retry-turnstile") { this.turnstileFailed = false; this.error = ""; this.render(); }
+	if (action === "manual-address") { this.manualAddress = true; this.render(); }
 	if (action === "save-later") await this.saveForLater();
 	if (action === "restart") this.restart();
   }
@@ -361,7 +395,7 @@ class Ps1Application {
     ].map(([value, title, description]) => choice("need", value, title, description, this.state.need === value)).join("")}</div>`;
 
     if (this.step === 1) return `<h3>Tell us about the project</h3><div class="field-grid project-fields">
-      ${field("project.address", "Job address", this.state.project.address, "address", { required: true, maxLength: 250, placeholder: "Street address" })}
+      ${this.addressField()}
       ${field("project.buildingConsentNumber", "Building Consent number (BC)", this.state.project.buildingConsentNumber, "buildingConsentNumber", { maxLength: 50, placeholder: "If available" })}
       ${field("project.resourceConsentNumber", "Resource Consent number (RC)", this.state.project.resourceConsentNumber, "resourceConsentNumber", { maxLength: 50, placeholder: "If applicable" })}
       <label class="field"><span>Estimated installation date</span><select data-field="project.estimatedInstallation">${[["not_sure","Not sure"],["asap","ASAP"],["3_months","Within 3 months"],["6_months","Within 6 months"],["1_year","Within 1 year"],["2_years","Within 2 years"]].map(([v,l])=>option(v,l,this.state.project.estimatedInstallation)).join("")}</select></label>
@@ -402,15 +436,57 @@ class Ps1Application {
     return '<div class="security-box"><strong>Security check</strong><p>Complete this quick check before saving or uploading.</p><div data-turnstile></div></div>';
   }
 
+  addressField() {
+    if (this.manualAddress || !config.googleMapsApiKey) {
+      const hint = this.addressAutocompleteFailed ? '<p class="field-hint">Address suggestions are unavailable. You can still enter the address manually.</p>' : "";
+      return `<div class="address-field">${field("project.address", "Job address", this.state.project.address, "address", { required: true, maxLength: 250, placeholder: "Street address", autoComplete: "street-address" })}${hint}</div>`;
+    }
+    return '<div class="field full address-field"><span>Job address *</span><div class="google-address-host" data-address-autocomplete><span class="field-loading">Loading address suggestions…</span></div><button type="button" class="text-action" data-action="manual-address">Enter address manually</button></div>';
+  }
+
+  mountAddressAutocomplete() {
+    const host = this.root.querySelector("[data-address-autocomplete]");
+    if (!host) return;
+    void loadGoogleMaps()
+      .then(() => window.google.maps.importLibrary("places"))
+      .then(({ PlaceAutocompleteElement }) => {
+        if (!host.isConnected) return;
+        const autocomplete = new PlaceAutocompleteElement({
+          includedRegionCodes: ["nz"],
+          placeholder: "Start typing the job address",
+        });
+        autocomplete.className = "google-address-control";
+        autocomplete.setAttribute("aria-label", "Job address");
+        autocomplete.maxLength = 250;
+        if (this.state.project.address) autocomplete.value = this.state.project.address;
+        autocomplete.addEventListener("gmp-select", (event) => {
+          const place = event.placePrediction?.toPlace();
+          if (!place) return;
+          void place.fetchFields({ fields: ["formattedAddress"] }).then(() => {
+            this.state.project.address = place.formattedAddress || "";
+            this.status = "";
+            this.refreshActionState();
+          });
+        });
+        host.replaceChildren(autocomplete);
+      })
+      .catch(() => {
+        if (!host.isConnected) return;
+        this.addressAutocompleteFailed = true;
+        this.manualAddress = true;
+        this.render();
+      });
+  }
+
   render() {
     if (this.submitted) {
-      this.root.innerHTML = `<div class="rg-ps1"><div class="portal-shell"><header class="portal-masthead success-masthead"><div class="masthead-shade"></div><div class="masthead-content"><img class="brand-logo" src="${escapeHtml(config.assetUrl + "brand/royal-glass-logo-white.png")}" alt="Royal Glass"><h1>Application received</h1><p>Thank you. Your project information has been sent to Royal Glass for review.</p></div></header><main class="success-card"><div class="reference-panel"><span>Application reference</span><strong>${escapeHtml(this.submitted.reference)}</strong></div><div class="email-confirmation"><span><strong>A confirmation email will be sent to</strong><small>${escapeHtml(this.state.applicant.email)}</small></span></div><a class="button primary" href="${escapeHtml(config.homeUrl)}">Back to homepage</a></main></div></div>`;
+      this.root.innerHTML = `<div class="rg-ps1"><div class="portal-shell"><header class="portal-masthead success-masthead"><div class="masthead-shade"></div><div class="masthead-content"><h1>Application received</h1><p>Thank you. Your project information has been sent to Royal Glass for review.</p></div></header><main class="success-card"><div class="reference-panel"><span>Application reference</span><strong>${escapeHtml(this.submitted.reference)}</strong></div><div class="email-confirmation"><span><strong>A confirmation email will be sent to</strong><small>${escapeHtml(this.state.applicant.email)}</small></span></div><a class="button primary" href="${escapeHtml(config.homeUrl)}">Back to homepage</a></main></div></div>`;
       return;
     }
-    const saveState = this.status || (this.session ? "Draft active" : "Not saved yet");
 	const restartAction = this.restoreFailed ? '<button type="button" class="button secondary" data-action="restart">Start a new application</button>' : "";
 	const finalActions = `<button type="button" class="button secondary" data-action="save-later"${this.busy||!this.canEmailResume()?" disabled":""}>${this.busy?"Saving…":"Save and email return link"}</button><button type="button" class="button primary" data-action="submit"${this.busy||!this.allValid()||!this.state.acknowledgement?" disabled":""}>${this.busy?"Submitting…":"Submit application"}</button>`;
-    this.root.innerHTML = `<div class="rg-ps1"><div class="portal-shell"><header class="portal-masthead"><div class="masthead-shade"></div><div class="masthead-content"><div class="masthead-meta"><img class="brand-logo" src="${escapeHtml(config.assetUrl + "brand/royal-glass-logo-white.png")}" alt="Royal Glass"><p>Secure application · ${escapeHtml(saveState)}</p></div><h1>Tell us about your project</h1><p class="masthead-intro">This usually takes less than a minute. If you don’t know an answer, choose “Not sure” and our team will help.</p><div class="hero-progress"><div><span>Step ${this.step+1} of ${steps.length}</span><strong>${steps[this.step]}</strong></div><div class="hero-progress-track"><span style="transform:scaleX(${(this.step+1)/steps.length})"></span></div></div></div></header><section class="primer"><div><strong>PS1 is for design</strong><span>Start before installation. A PS3 relates to completed work.</span></div><div><strong>You can begin now</strong><span>Incomplete drawings are okay—upload what you already have.</span></div><div><strong>Reviewed by people</strong><span>Royal Glass confirms the correct route after submission.</span></div></section><main class="application-layout"><aside class="step-rail"><h2>Your application</h2><p>Complete each section in order.</p><div class="step-list">${steps.map((label,index)=>`<button type="button" data-action="goto" data-step="${index}" class="${index===this.step?"active":""}"${index>this.furthestStep?" disabled":""}><span>${index+1}</span>${label}</button>`).join("")}</div></aside><section class="form-card"><div class="step-heading"><span>${this.step+1}</span><div><p class="step-progress-label">Step ${this.step+1} of ${steps.length}</p><h2>${steps[this.step]}</h2></div></div>${this.renderStep()}${this.error?`<div class="form-error" role="alert">${escapeHtml(this.error)}</div>${restartAction}`:""}${this.status?`<div class="form-status" role="status">${escapeHtml(this.status)}</div>`:""}<div class="form-actions"><button type="button" class="button secondary" data-action="back"${this.step===0||this.busy?" disabled":""}>Back</button>${this.step<steps.length-1?`<button type="button" class="button primary" data-action="continue"${this.busy||!this.stepValid()?" disabled":""}>${this.busy?"Saving…":"Continue"}</button>`:finalActions}</div></section></main></div></div>`;
+    this.root.innerHTML = `<div class="rg-ps1"><div class="portal-shell"><header class="portal-masthead"><div class="masthead-shade"></div><div class="masthead-content"><h1>Tell us about your project</h1><p class="masthead-intro">This usually takes less than a minute. If you don’t know an answer, choose “Not sure” and our team will help.</p><div class="hero-progress"><div><span>Step ${this.step+1} of ${steps.length}</span><strong>${steps[this.step]}</strong></div><div class="hero-progress-track"><span style="transform:scaleX(${(this.step+1)/steps.length})"></span></div></div></div></header><section class="primer"><div><strong>PS1 is for design</strong><span>Start before installation. A PS3 relates to completed work.</span></div><div><strong>You can begin now</strong><span>Incomplete drawings are okay—upload what you already have.</span></div><div><strong>Reviewed by people</strong><span>Royal Glass confirms the correct route after submission.</span></div></section><main class="application-layout"><aside class="step-rail"><h2>Your application</h2><p>Complete each section in order.</p><div class="step-list">${steps.map((label,index)=>`<button type="button" data-action="goto" data-step="${index}" class="${index===this.step?"active":""}"${index>this.furthestStep?" disabled":""}><span>${index+1}</span>${label}</button>`).join("")}</div></aside><section class="form-card"><div class="step-heading"><span>${this.step+1}</span><div><p class="step-progress-label">Step ${this.step+1} of ${steps.length}</p><h2>${steps[this.step]}</h2></div></div>${this.renderStep()}${this.error?`<div class="form-error" role="alert">${escapeHtml(this.error)}</div>${restartAction}`:""}${this.status?`<div class="form-status" role="status">${escapeHtml(this.status)}</div>`:""}<div class="form-actions"><button type="button" class="button secondary" data-action="back"${this.step===0||this.busy?" disabled":""}>Back</button>${this.step<steps.length-1?`<button type="button" class="button primary" data-action="continue"${this.busy||!this.stepValid()?" disabled":""}>${this.busy?"Saving…":"Continue"}</button>`:finalActions}</div></section></main></div></div>`;
+    this.mountAddressAutocomplete();
     this.mountTurnstile();
   }
 
@@ -444,4 +520,12 @@ class Ps1Application {
   }
 }
 
-document.querySelectorAll("[data-rg-ps1-native]").forEach((root) => new Ps1Application(root));
+const roots = document.querySelectorAll("[data-rg-ps1-native]");
+
+if (roots.length) {
+  const syncSiteHeader = () => document.body.classList.toggle("rg-ps1-nav-scrolled", window.scrollY > 0);
+  syncSiteHeader();
+  window.addEventListener("scroll", syncSiteHeader, { passive: true });
+}
+
+roots.forEach((root) => new Ps1Application(root));

@@ -103,3 +103,25 @@ test("return-later and recovery paths are explicit", async () => {
   assert.match(app, /data-action="restart"/);
   assert.match(app, /this\.turnstileToken = "";[\s\S]*?throw error/);
 });
+
+test("the WordPress embed does not duplicate site branding and darkens the sticky menu after scrolling", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  const styles = await readFile(new URL("assets/app.css", root), "utf8");
+  assert.doesNotMatch(app, /class="brand-logo"/);
+  assert.doesNotMatch(app, /Secure application/);
+  assert.match(app, /window\.scrollY > 0/);
+  assert.match(app, /rg-ps1-nav-scrolled/);
+  assert.match(styles, /body\.rg-ps1-nav-scrolled #masthead\s*\{[^}]*background-color:\s*#3d3d3d\s*!important/);
+});
+
+test("the job address field wires Google Places autocomplete with a manual-entry fallback", async () => {
+  const plugin = await readFile(new URL("royal-glass-ps1-native.php", root), "utf8");
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  assert.match(plugin, /RG_PS1_GOOGLE_MAPS_API_KEY/);
+  assert.match(plugin, /googleMapsApiKey/);
+  assert.match(app, /google\.maps\.importLibrary\("places"\)/);
+  assert.match(app, /PlaceAutocompleteElement/);
+  assert.match(app, /includedRegionCodes:\s*\["nz"\]/);
+  assert.match(app, /data-action="manual-address"/);
+  assert.match(app, /field\("project\.address"/);
+});
