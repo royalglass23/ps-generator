@@ -107,9 +107,10 @@ async function goToFreshDocuments() {
   await act(async () => setControlValue(address!, "13 Example Street, Auckland"));
   await act(async () => button("Continue").click());
   await settle();
-  const system = document.querySelector<HTMLSelectElement>("select");
-  expect(system).not.toBeNull();
-  await act(async () => setControlValue(system!, "double-disc"));
+  const system = Array.from(document.querySelectorAll<HTMLButtonElement>(".system-choice"))
+    .find((candidate) => candidate.querySelector("strong")?.textContent === "Double Disc");
+  expect(system).not.toBeUndefined();
+  await act(async () => system!.click());
   await act(async () => button("Continue").click());
   await settle();
   await act(async () => button("Continue").click());

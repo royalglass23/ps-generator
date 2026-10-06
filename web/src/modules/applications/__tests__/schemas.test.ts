@@ -88,6 +88,16 @@ describe("application input schemas", () => {
     ).toBe(false);
   });
 
+  it.each(["aluminium", "canopy"])("accepts the %s design family", (family) => {
+    const system = family === "canopy" ? "juralco-canopy" : "viking-aluminium";
+    expect(
+      submissionPayloadSchema.safeParse({
+        ...validSubmission,
+        design: { family, system },
+      }).success,
+    ).toBe(true);
+  });
+
   it("allows normal paragraphs but rejects control and bidirectional override characters", () => {
     expect(informationResponseSchema.safeParse("First paragraph.\n\nSecond paragraph.").success).toBe(true);
     expect(informationResponseSchema.safeParse("Hidden\u0000control").success).toBe(false);
