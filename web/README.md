@@ -46,7 +46,7 @@ The application reads exactly the R2 variable names already chosen for this proj
 - `R2_SECRET_ACCESS_KEY_PS1`
 - `R2_REGION=auto`
 
-It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
+It also requires `DATABASE_URL_PROD`, `RESEND_API_KEY`, `INTERNAL_EMAIL_FROM`, `APPLICANT_EMAIL_FROM`, `SUPPORT_EMAIL`, `SERVICEM8_INBOX_EMAIL`, `APP_BASE_URL`, `CRON_SECRET`, the public `TURNSTILE_SITE_KEY`, the private `TURNSTILE_SECRET_KEY`, and an independent random `RATE_LIMIT_SECRET` of at least 32 characters. `PUBLIC_APPLICATION_URL` optionally points resume links at the public WordPress page, and `WORDPRESS_EMBED_ORIGIN` restricts iframe embedding and messages to that WordPress origin. `DRAFT_RATE_LIMIT_PER_HOUR` defaults to 5 and `UPLOAD_RATE_LIMIT_PER_HOUR` defaults to 10. Configuration is parsed lazily so a missing provider credential fails only a route that needs that provider, without exposing its value.
 
 ## Applicant API
 
@@ -80,4 +80,4 @@ Both require `Authorization: Bearer <CRON_SECRET>`. They are code only until the
 
 ## Current boundary
 
-This slice provides the backend and provider adapters. It does not connect the existing prototype UI, apply the generated migrations, deploy, create Vercel resources, send real email, or expose staff actions. Those are separate, explicit release steps.
+The applicant UI and provider adapters are implemented, and the WordPress wrapper source is under `../wordpress-plugin/royal-glass-ps1`. The repository does not itself prove that migrations were applied, provider resources were configured, the application or plugin was deployed, or live email was sent. Those remain separate, explicit release steps. Staff actions are not exposed.

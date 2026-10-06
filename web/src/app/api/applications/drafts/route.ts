@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getApplicationConfig } from "@/lib/config";
 import { errorResponse, requestIp } from "@/lib/http";
 import { getApplicationService } from "@/modules/applications/runtime";
+import { buildResumeUrl } from "@/modules/applications/resume-url";
 import { limitDraftCreation } from "@/modules/security/runtime";
 import { verifyTurnstile } from "@/modules/security/turnstile";
 
@@ -22,13 +23,18 @@ export async function POST(request: Request) {
     await verifyTurnstile(parsed.data.turnstileToken, remoteIp === "unavailable" ? undefined : remoteIp);
     await limitDraftCreation(remoteIp);
     const draft = await getApplicationService().createDraft();
-    const { APP_BASE_URL } = getApplicationConfig();
+    const { APP_BASE_URL, PUBLIC_APPLICATION_URL } = getApplicationConfig();
     return NextResponse.json(
       {
         id: draft.id,
         resumeToken: draft.resumeToken,
         expiresAt: draft.expiresAt.toISOString(),
-        resumeUrl: `${APP_BASE_URL}/application/${draft.id}#token=${encodeURIComponent(draft.resumeToken)}`,
+        resumeUrl: buildResumeUrl({
+          applicationBaseUrl: APP_BASE_URL,
+          publicApplicationUrl: PUBLIC_APPLICATION_URL,
+          applicationId: draft.id,
+          resumeToken: draft.resumeToken,
+        }),
       },
       { status: 201 },
     );

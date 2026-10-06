@@ -33,6 +33,7 @@
 .rg-ps1 button:focus-visible, .rg-ps1 input:focus-visible, .rg-ps1 select:focus-visible, .rg-ps1 summary:focus-visible, .rg-ps1 label:has(input:focus-visible) { outline: 3px solid rgb(26 132 139 / 28%); outline-offset: 3px; }
 
 .rg-ps1 .portal-shell { min-height: 100vh; padding-bottom: 4.5rem; background: var(--rg-ground); }
+.rg-ps1-embed-boundary .portal-shell { min-height: 0; }
 .rg-ps1 .portal-masthead { min-height: 23rem; position: relative; display: grid; align-items: center; overflow: hidden; color: var(--rg-white); background-color: var(--rg-charcoal); background-image: url("/assets/brand/royal-glass-hero.jpg"); background-position: center 56%; background-size: cover; }
 .rg-ps1 .masthead-shade { position: absolute; inset: 0; background: rgb(18 28 29 / 68%); }
 .rg-ps1 .masthead-content { width: min(1180px, calc(100% - 3rem)); margin: 0 auto; padding: 1.6rem 0 2.25rem; position: relative; z-index: 1; }

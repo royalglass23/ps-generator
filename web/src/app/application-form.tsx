@@ -26,6 +26,8 @@ import {
   type LocationType,
 } from "@/modules/applications/schemas";
 import { persistSubmissionReceipt } from "./submission-receipt";
+import { postEmbedCompleteMessage, postEmbedResumeMessage, requestEmbedResumeToken } from "./embed-bridge";
+import { clearResumeToken, rememberResumeToken, resolveResumeToken } from "./resume-session";
 
 declare global {
   interface Window {
@@ -329,7 +331,7 @@ export function ApplicationReceiptUnavailable() {
   );
 }
 
-export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKey: string; googleMapsApiKey: string; draftId?: string }) {
+export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draftId }: { siteKey: string; googleMapsApiKey: string; parentOrigin?: string; draftId?: string }) {
   const [state, setState] = useState<JourneyState>(cloneInitialState);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
@@ -356,18 +358,30 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     if (!draftId) return;
     async function restoreDraft() {
       await Promise.resolve();
-      const token = decodeURIComponent(location.hash.replace(/^#token=/, ""));
-      if (!token) throw new Error("This resume link is incomplete. Open the full link from your saved copy.");
+      let resume = resolveResumeToken(draftId!, location.hash, window.sessionStorage);
+      if (!resume && parentOrigin && window.parent !== window) {
+        const handedOffToken = await requestEmbedResumeToken(parentOrigin, draftId!);
+        if (handedOffToken) {
+          resume = {
+            token: handedOffToken,
+            consumedFragment: rememberResumeToken(draftId!, handedOffToken, window.sessionStorage),
+          };
+        }
+      }
+      if (!resume) throw new Error("This resume link is incomplete. Open the full link from your saved copy.");
       setBusy(true);
-      const loaded = await loadDraft(draftId!, token);
+      const loaded = await loadDraft(draftId!, resume.token);
         setState(loaded);
-        const restoredSession = { id: draftId!, resumeToken: token, expiresAt: "", resumeUrl: location.href };
+        const restoredSession = { id: draftId!, resumeToken: resume.token, expiresAt: "", resumeUrl: location.href };
         sessionRef.current = restoredSession;
         setSession(restoredSession);
         setStatus("Saved application restored");
+        if (resume.consumedFragment && parentOrigin && window.parent !== window) {
+          history.replaceState({}, "", `/application/${draftId}`);
+        }
     }
     void restoreDraft().catch((reason: Error) => setError(reason.message)).finally(() => setBusy(false));
-  }, [draftId]);
+  }, [draftId, parentOrigin]);
 
   useEffect(() => {
     if (step !== 4 && step !== stepLabels.length - 1) return;
@@ -404,7 +418,16 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
     const creating = createDraftSession(turnstileToken).then((created) => {
       sessionRef.current = created;
       setSession(created);
-      history.replaceState({}, "", `/application/${created.id}#token=${encodeURIComponent(created.resumeToken)}`);
+      const tokenRemembered = rememberResumeToken(created.id, created.resumeToken, window.sessionStorage);
+      const embedded = Boolean(parentOrigin) && window.parent !== window;
+      history.replaceState(
+        {},
+        "",
+        tokenRemembered && embedded
+          ? `/application/${created.id}`
+          : `/application/${created.id}#token=${encodeURIComponent(created.resumeToken)}`,
+      );
+      postEmbedResumeMessage(parentOrigin ?? "", created.id);
       return created;
     }).catch((reason) => {
       setTurnstileToken("");
@@ -547,6 +570,8 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, draftId }: { siteKe
       await saveDraft(activeSession, state);
       const receipt = await submitApplication(activeSession, state);
       persistSubmissionReceipt({ ...receipt, email: state.applicant.email });
+      clearResumeToken(activeSession.id, window.sessionStorage);
+      postEmbedCompleteMessage(parentOrigin ?? "");
       setSubmitted(receipt);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The application could not be submitted."); }
     finally { setBusy(false); }
