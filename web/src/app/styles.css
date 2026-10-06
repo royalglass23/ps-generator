@@ -125,7 +125,7 @@
 
 .rg-ps1 .system-select { width: 100%; }
 .rg-ps1 .system-reference-card { width: 100%; margin: 1rem auto 0; overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; background: var(--rg-white); }
-.rg-ps1 .system-reference-image { width: 100%; height: clamp(13rem, 32vw, 19rem); position: relative; display: block; overflow: hidden; background: #eef1f1; }
+.rg-ps1 .system-reference-image { width: 100%; height: clamp(26rem, 64vw, 38rem); position: relative; display: block; overflow: hidden; background: #eef1f1; }
 .rg-ps1 .system-reference-image img { object-fit: cover; }
 .rg-ps1 .system-reference-card figcaption { padding: .85rem 1rem; display: grid; gap: .2rem; }
 .rg-ps1 .system-reference-card strong { color: var(--rg-charcoal); font-size: .9rem; }
