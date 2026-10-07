@@ -264,7 +264,6 @@ class Ps1Application {
     if (action === "remove-upload") await this.removeUpload(button.dataset.id);
 	if (action === "retry-turnstile") { this.turnstileFailed = false; this.error = ""; this.render(); }
 	if (action === "manual-address") { this.manualAddress = true; this.render(); }
-	if (action === "save-later") await this.saveForLater();
 	if (action === "restart") this.restart();
   }
 
@@ -281,8 +280,6 @@ class Ps1Application {
 	if (continueButton) continueButton.disabled = this.busy || !this.stepValid();
 	const submitButton = this.root.querySelector('[data-action="submit"]');
 	if (submitButton) submitButton.disabled = this.busy || !this.allValid() || !this.state.acknowledgement;
-	const saveButton = this.root.querySelector('[data-action="save-later"]');
-	if (saveButton) saveButton.disabled = this.busy || !this.canEmailResume();
   }
 
   change(event) {
@@ -390,22 +387,6 @@ class Ps1Application {
       const url = new URL(location.href); url.searchParams.delete("application"); url.hash = ""; history.replaceState({}, "", url);
     } catch (error) { this.error = error.message; }
     finally { this.busy = false; this.render(); }
-  }
-
-  canEmailResume() {
-	return !validateInput("name", this.state.applicant.name) && !validateInput("email", this.state.applicant.email);
-  }
-
-  async saveForLater() {
-	if (!this.canEmailResume()) { this.error = "Enter your name and email address before saving for later."; this.render(); return; }
-	this.busy = true; this.error = ""; this.status = ""; this.render();
-	try {
-	  const session = await this.ensureSession();
-	  await this.persist();
-	  const result = await this.api(`/applications/drafts/${session.id}/resume-link`, { method: "POST", headers: this.headers(true), body: "{}" });
-	  this.status = `Return link queued for ${result.email}`;
-	} catch (error) { this.error = error.message; }
-	finally { this.busy = false; this.render(); }
   }
 
   restart() {
@@ -521,7 +502,7 @@ class Ps1Application {
       return;
     }
 	const restartAction = this.restoreFailed ? '<button type="button" class="button secondary" data-action="restart">Start a new application</button>' : "";
-	const finalActions = `<button type="button" class="button secondary" data-action="save-later"${this.busy||!this.canEmailResume()?" disabled":""}>${this.busy?"Saving…":"Save and email return link"}</button><button type="button" class="button primary" data-action="submit"${this.busy||!this.allValid()||!this.state.acknowledgement?" disabled":""}>${this.busy?"Submitting…":"Submit application"}</button>`;
+	const finalActions = `<button type="button" class="button primary" data-action="submit"${this.busy||!this.allValid()||!this.state.acknowledgement?" disabled":""}>${this.busy?"Submitting…":"Submit application"}</button>`;
     this.root.innerHTML = `<div class="rg-ps1"><div class="portal-shell"><header class="portal-masthead"><div class="masthead-shade"></div><div class="masthead-content"><h1>Tell us about your project</h1><p class="masthead-intro">This usually takes less than a minute. If you don’t know an answer, choose “Not sure” and our team will help.</p><div class="hero-progress"><div><span>Step ${this.step+1} of ${steps.length}</span><strong>${steps[this.step]}</strong></div><div class="hero-progress-track"><span style="transform:scaleX(${(this.step+1)/steps.length})"></span></div></div></div></header><section class="primer"><div><strong>PS1 is for design</strong><span>Start before installation. A PS3 relates to completed work.</span></div><div><strong>You can begin now</strong><span>Incomplete drawings are okay—upload what you already have.</span></div><div><strong>Reviewed by people</strong><span>Royal Glass confirms the correct route after submission.</span></div></section><main class="application-layout"><aside class="step-rail"><h2>Your application</h2><p>Complete each section in order.</p><div class="step-list">${steps.map((label,index)=>`<button type="button" data-action="goto" data-step="${index}" class="${index===this.step?"active":""}"${index>this.furthestStep?" disabled":""}><span>${index+1}</span>${label}</button>`).join("")}</div></aside><section class="form-card"><div class="step-heading"><span>${this.step+1}</span><div><p class="step-progress-label">Step ${this.step+1} of ${steps.length}</p><h2>${steps[this.step]}</h2></div></div>${this.renderStep()}${this.error?`<div class="form-error" role="alert">${escapeHtml(this.error)}</div>${restartAction}`:""}${this.status?`<div class="form-status" role="status">${escapeHtml(this.status)}</div>`:""}<div class="form-actions"><button type="button" class="button secondary" data-action="back"${this.step===0||this.busy?" disabled":""}>Back</button>${this.step<steps.length-1?`<button type="button" class="button primary" data-action="continue"${this.busy||!this.stepValid()?" disabled":""}>${this.busy?"Saving…":"Continue"}</button>`:finalActions}</div></section></main></div></div>`;
     this.mountAddressAutocomplete();
     this.mountTurnstile();
