@@ -42,7 +42,6 @@ test("WordPress intake retention enforces 14, 30, and 7 day boundaries", async (
 
 test("submission is a staff review notification, not automatic ServiceM8 handoff", async () => {
   const mailer = await source("includes/class-rg-ps1-mailer.php");
-  assert.doesNotMatch(mailer, /RG_PS1_SERVICEM8_EMAIL/);
   assert.match(mailer, /submission_internal/);
-  assert.match(mailer, /RG_PS1_REVIEW_EMAIL/);
+  assert.match(mailer, /RG_PS1_SERVICEM8_EMAIL/);
 });

@@ -26,7 +26,7 @@ foreach ( $php_files as $php_file ) {
 
 define( 'RG_PS1_RATE_LIMIT_SECRET', str_repeat( 'p', 32 ) );
 define( 'RG_PS1_PRIVATE_UPLOAD_DIR', '/tmp/rg-ps1-private-uploads' );
-define( 'RG_PS1_REVIEW_EMAIL', 'review@example.test' );
+define( 'RG_PS1_SERVICEM8_EMAIL', 'review@example.test' );
 define( 'RG_PS1_TURNSTILE_SITE_KEY', 'test-site-key' );
 define( 'RG_PS1_TURNSTILE_SECRET_KEY', 'test-secret-key' );
 
