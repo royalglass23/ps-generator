@@ -171,14 +171,23 @@
 .rg-ps1 .upload-zone span { color: var(--rg-muted); font-size: .8rem; }
 .rg-ps1 .upload-zone.disabled { opacity: .55; cursor: not-allowed; }
 .rg-ps1 .file-list { margin: 1rem 0; display: grid; gap: .55rem; }
-.rg-ps1 .file-list > div { padding: .75rem .9rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--rg-line); border-radius: 3px; }
-.rg-ps1 .file-list span { display: grid; gap: .2rem; }
-.rg-ps1 .file-list small { color: var(--rg-muted); }
+.rg-ps1 .file-list > .file-item { padding: .75rem .9rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 1rem; row-gap: .6rem; border: 1px solid var(--rg-line); border-radius: 3px; }
+.rg-ps1 .file-details { min-width: 0; display: grid; gap: .2rem; }
+.rg-ps1 .file-details strong { overflow-wrap: anywhere; }
+.rg-ps1 .file-details small { color: var(--rg-muted); }
 .rg-ps1 .file-list b { color: var(--rg-success); font-size: .8rem; }
-.rg-ps1 .file-list .file-actions { display: flex; align-items: center; gap: .65rem; }
-.rg-ps1 .file-actions .text-button { position: static; }
+.rg-ps1 .file-list .file-actions { display: flex; align-items: baseline; gap: .65rem; }
+.rg-ps1 .file-actions .text-button { margin: 0; position: static; font-size: .8rem; line-height: 1.5; }
+.rg-ps1 .upload-status { line-height: 1.5; }
 .rg-ps1 .upload-status.preparing, .rg-ps1 .upload-status.uploading, .rg-ps1 .upload-status.removing { color: var(--rg-muted); }
 .rg-ps1 .upload-retry { color: var(--rg-danger); font-weight: 700; }
+.rg-ps1 .upload-progress { height: 3px; grid-column: 1 / -1; overflow: hidden; border-radius: 2px; background: var(--rg-line); }
+.rg-ps1 .upload-progress span { width: 42%; height: 100%; display: block; border-radius: inherit; background: var(--rg-teal); animation: rg-upload-progress 1.15s cubic-bezier(.22, 1, .36, 1) infinite; }
+
+@keyframes rg-upload-progress {
+  from { transform: translateX(-55%); }
+  to { transform: translateX(180%); }
+}
 
 .rg-ps1 .summary { overflow: hidden; border: 1px solid var(--rg-line); border-radius: 4px; }
 .rg-ps1 .summary > div { padding: .8rem 1rem; display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; }
@@ -260,6 +269,9 @@
   .rg-ps1 .summary > div { grid-template-columns: 1fr; gap: .2rem; }
   .rg-ps1 .multi-select-options { grid-template-columns: 1fr; }
   .rg-ps1 .section-head { align-items: flex-start; flex-direction: column; }
+  .rg-ps1 .file-list > .file-item { grid-template-columns: minmax(0, 1fr); }
+  .rg-ps1 .file-actions { width: 100%; justify-content: space-between; }
+  .rg-ps1 .upload-progress { grid-column: 1; }
   .rg-ps1 .success-masthead { min-height: 28rem; }
   .rg-ps1 .success-heading { align-items: flex-start; flex-direction: column; }
   .rg-ps1 .success-card { width: calc(100% - 2rem); }
@@ -267,4 +279,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rg-ps1 *, .rg-ps1 *::before, .rg-ps1 *::after { scroll-behavior: auto !important; transition: none !important; }
+  .rg-ps1 .upload-progress span { animation: none; }
 }

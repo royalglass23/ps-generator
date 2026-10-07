@@ -235,9 +235,14 @@ describe("application uploads", () => {
       expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url.endsWith("/uploads"))).toHaveLength(1);
       expect(document.body.textContent).toContain("Uploading…");
     });
+    const progress = document.querySelector('[role="progressbar"][aria-label="Uploading drawing.pdf"]');
+    expect(progress).not.toBeNull();
+    expect(progress?.getAttribute("aria-valuetext")).toBe("Uploading");
     expect(callsTo(fetcher, (url) => url.endsWith("/submit"))).toHaveLength(0);
     upload.resolve(new Response(null, { status: 200 }));
     await waitFor(() => expect(document.body.textContent).toContain("Uploaded"));
+    expect(document.querySelector('[role="progressbar"]')).toBeNull();
+    expect(document.querySelector(".upload-status.uploaded")?.textContent).toBe("Uploaded");
   });
 
   it("does not upload an already uploaded file again during submit", async () => {
