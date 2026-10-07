@@ -103,19 +103,29 @@ final class RG_PS1_Mailer {
 			if ( ! empty( $message['reply_to'] ) ) {
 				$headers[] = 'Reply-To: ' . sanitize_email( (string) $message['reply_to'] );
 			}
-			$sent = wp_mail(
-				(array) json_decode( (string) $message['to_addresses'], true ),
-				(string) $message['subject'],
-				(string) $message['html_body'],
-				$headers,
-				$attachments
-			);
+			$sender_name_filter = array( $this, 'sender_name' );
+			add_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
+			try {
+				$sent = wp_mail(
+					(array) json_decode( (string) $message['to_addresses'], true ),
+					(string) $message['subject'],
+					(string) $message['html_body'],
+					$headers,
+					$attachments
+				);
+			} finally {
+				remove_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
+			}
 			if ( $sent ) {
 				$this->database->mark_email_sent( (string) $message['id'] );
 			} else {
 				$this->database->mark_email_failed( (string) $message['id'], (int) $message['attempts'] + 1, 'wp_mail returned false.' );
 			}
 		}
+	}
+
+	public function sender_name( string $current_name ): string {
+		return 'PS1 Application';
 	}
 
 	private function summary( string $reference, array $payload ): string {

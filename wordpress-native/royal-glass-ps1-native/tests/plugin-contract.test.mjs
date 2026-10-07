@@ -19,6 +19,13 @@ test("plugin defines dedicated persistence, retention, and mail-outbox tables", 
   assert.match(source, /dbDelta\s*\(/);
 });
 
+test("plugin mail uses the PS1 Application sender name without replacing the configured sender address", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+  assert.match(source, /wp_mail_from_name/);
+  assert.match(source, /return ['"]PS1 Application['"]/);
+  assert.doesNotMatch(source, /From:\s*PS1 Application\s*</);
+});
+
 test("private upload implementation blocks direct web access", async () => {
   const source = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
   assert.match(source, /RG_PS1_PRIVATE_UPLOAD_DIR/);
