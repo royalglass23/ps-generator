@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class RG_PS1_Database {
-	public const SCHEMA_VERSION      = '2';
+	public const SCHEMA_VERSION      = '3';
 	public const MAX_EMAIL_ATTEMPTS  = 5;
 
 	private wpdb $wpdb;
@@ -51,13 +51,19 @@ final class RG_PS1_Database {
 			payload longtext NOT NULL,
 			draft_expires_at datetime NULL,
 			submitted_at datetime NULL,
+			review_escalated_at datetime NULL,
+			outcome_confirmed_at datetime NULL,
+			retention_expires_at datetime NULL,
+			servicem8_reference varchar(100) NULL,
 			locked_at datetime NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY reference (reference),
 			KEY status (status),
-			KEY draft_expires_at (draft_expires_at)
+			KEY draft_expires_at (draft_expires_at),
+			KEY review_escalated_at (review_escalated_at),
+			KEY retention_expires_at (retention_expires_at)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$uploads} (
@@ -247,6 +253,16 @@ final class RG_PS1_Database {
 		return $this->wpdb->get_results( $sql, ARRAY_A );
 	}
 
+	public function all_uploads_for_application( string $application_id ): array {
+		return $this->wpdb->get_results(
+			$this->wpdb->prepare(
+				'SELECT * FROM ' . $this->table( 'uploads' ) . ' WHERE application_id = %s ORDER BY created_at ASC',
+				$application_id
+			),
+			ARRAY_A
+		);
+	}
+
 	public function delete_upload( string $application_id, string $upload_id ): bool {
 		return false !== $this->wpdb->delete(
 			$this->table( 'uploads' ),
@@ -392,6 +408,104 @@ final class RG_PS1_Database {
 			),
 			ARRAY_A
 		);
+	}
+
+	public function applications_due_review_escalation( string $cutoff, int $limit = 25 ): array {
+		return $this->wpdb->get_results(
+			$this->wpdb->prepare(
+				'SELECT id, reference FROM ' . $this->table( 'applications' ) . ' WHERE status = %s AND submitted_at <= %s AND review_escalated_at IS NULL ORDER BY submitted_at ASC LIMIT %d',
+				'submitted',
+				$cutoff,
+				$limit
+			),
+			ARRAY_A
+		);
+	}
+
+	public function mark_review_escalated( string $id, string $now ): bool {
+		$updated = $this->wpdb->query(
+			$this->wpdb->prepare(
+				'UPDATE ' . $this->table( 'applications' ) . ' SET review_escalated_at = %s, updated_at = %s WHERE id = %s AND status = %s AND review_escalated_at IS NULL',
+				$now,
+				$now,
+				$id,
+				'submitted'
+			)
+		);
+		return 1 === $updated;
+	}
+
+	public function record_outcome( string $id, string $outcome, string $servicem8_reference, string $confirmed_at, string $retention_expires_at ): bool {
+		$updated = $this->wpdb->query(
+			$this->wpdb->prepare(
+				'UPDATE ' . $this->table( 'applications' ) . ' SET status = %s, servicem8_reference = %s, outcome_confirmed_at = %s, retention_expires_at = %s, updated_at = %s WHERE id = %s AND status = %s',
+				$outcome,
+				$servicem8_reference,
+				$confirmed_at,
+				$retention_expires_at,
+				$confirmed_at,
+				$id,
+				'submitted'
+			)
+		);
+		if ( 1 !== $updated ) {
+			return false;
+		}
+		return false !== $this->wpdb->insert(
+			$this->table( 'status_history' ),
+			array(
+				'id'             => wp_generate_uuid4(),
+				'application_id' => $id,
+				'from_status'    => 'submitted',
+				'to_status'      => $outcome,
+				'actor_type'     => 'staff',
+				'actor_id'       => (string) get_current_user_id(),
+				'created_at'     => $confirmed_at,
+			)
+		);
+	}
+
+	public function applications_due_intake_expiry( string $pending_cutoff, string $now, int $limit = 25 ): array {
+		return $this->wpdb->get_results(
+			$this->wpdb->prepare(
+				"SELECT id, status FROM " . $this->table( 'applications' ) . " WHERE (status = 'submitted' AND submitted_at <= %s) OR (status IN ('accepted', 'unaccepted') AND retention_expires_at <= %s) ORDER BY updated_at ASC LIMIT %d",
+				$pending_cutoff,
+				$now,
+				$limit
+			),
+			ARRAY_A
+		);
+	}
+
+	public function delete_application_outbox( string $application_id ): bool {
+		return false !== $this->wpdb->delete(
+			$this->table( 'email_outbox' ),
+			array( 'application_id' => $application_id ),
+			array( '%s' )
+		);
+	}
+
+	public function delete_application_upload_records( string $application_id ): bool {
+		return false !== $this->wpdb->delete(
+			$this->table( 'uploads' ),
+			array( 'application_id' => $application_id ),
+			array( '%s' )
+		);
+	}
+
+	public function expire_intake( string $id, string $expected_status, string $now ): bool {
+		$updated = $this->wpdb->query(
+			$this->wpdb->prepare(
+				'UPDATE ' . $this->table( 'applications' ) . ' SET status = %s, payload = %s, resume_token_hash = %s, servicem8_reference = NULL, updated_at = %s WHERE id = %s AND status = %s',
+				'expired_intake',
+				'{}',
+				str_repeat( '0', 64 ),
+				$now,
+				$id,
+				$expected_status
+			)
+		);
+		return 1 === $updated;
 	}
 
 	public function expire_draft( string $id ): bool {

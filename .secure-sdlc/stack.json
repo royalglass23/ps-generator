@@ -1,0 +1,7 @@
+{
+  "stack": "node",
+  "detectedAt": "2026-10-07T16:24:48+13:00",
+  "detectedBy": "marker:wordpress-native/royal-glass-ps1-native/package.json",
+  "runtime": "WordPress/PHP 8.1 with browser JavaScript; Node is used for tests and the reference application",
+  "compliance": ["nz-privacy"]
+}

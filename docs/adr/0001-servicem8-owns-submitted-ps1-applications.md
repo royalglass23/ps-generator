@@ -1,0 +1,5 @@
+# ServiceM8 owns submitted PS1 applications
+
+ServiceM8 is the authoritative PS1 Application Record after Royal Glass staff completes its review. For an Accepted PS1 Application, staff creates a Job Card. For an Unaccepted PS1 Application, staff records the decision and applicant phone contact as a Non-job Outcome Record without creating a Job Card. The initial submission email is only a review notification and does not complete the handoff.
+
+WordPress holds the Intake Copy while staff reviews the application and for a seven-day recovery window after the corresponding ServiceM8 record is confirmed, then deletes the application data and uploaded files. A still-pending Intake Copy is escalated after 14 calendar days and silently deleted from WordPress at 30 calendar days without applicant notification. These WordPress timers do not automatically expire or delete ServiceM8 records. This avoids creating a second long-lived case-management store while preserving limited operational recovery.

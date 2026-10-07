@@ -23,7 +23,7 @@ final class RG_PS1_Mailer {
 		$summary   = $this->summary( $reference, $payload );
 		$now       = gmdate( 'Y-m-d H:i:s' );
 		$ids       = array_column( $uploads, 'id' );
-		$internal  = defined( 'RG_PS1_SERVICEM8_EMAIL' ) ? (string) RG_PS1_SERVICEM8_EMAIL : '';
+		$internal  = $this->review_address();
 		$support   = defined( 'RG_PS1_SUPPORT_EMAIL' ) ? (string) RG_PS1_SUPPORT_EMAIL : (string) get_option( 'admin_email' );
 
 		if ( '' === $internal || ! is_email( $internal ) || ! is_email( $support ) ) {
@@ -34,7 +34,7 @@ final class RG_PS1_Mailer {
 				'id'             => wp_generate_uuid4(),
 				'application_id' => $application_id,
 				'kind'           => 'submission_internal',
-				'to_addresses'   => wp_json_encode( array( $internal, $support ) ),
+				'to_addresses'   => wp_json_encode( array_values( array_unique( array( $internal, $support ) ) ) ),
 				'reply_to'       => $applicant['email'],
 				'subject'        => sprintf( 'PS1 Application %s - %s', $reference, $payload['project']['address'] ),
 				'text_body'      => $summary,
@@ -66,6 +66,15 @@ final class RG_PS1_Mailer {
 		return $queued_internal && $queued_applicant;
 	}
 
+	public function enqueue_review_escalation( string $application_id, string $reference ): bool {
+		$review = $this->review_address();
+		if ( ! is_email( $review ) ) {
+			return false;
+		}
+		$body = "PS1 application {$reference} has remained under review for 14 days. Record the staff outcome after the ServiceM8 Job Card or Non-job Outcome Record is confirmed.";
+		return $this->enqueue_internal_notice( $application_id, 'review_escalation', $review, "PS1 review overdue - {$reference}", $body, array() );
+	}
+
 	public function enqueue_resume( string $application_id, string $applicant_name, string $applicant_email, string $resume_url ): bool {
 		$support = defined( 'RG_PS1_SUPPORT_EMAIL' ) ? (string) RG_PS1_SUPPORT_EMAIL : (string) get_option( 'admin_email' );
 		$body    = "Kia ora {$applicant_name},\n\nContinue your Royal Glass PS1 application using this private link:\n{$resume_url}\n\nDo not forward this link. It provides access to your saved application and expires with the draft.\n\nRoyal Glass";
@@ -93,6 +102,9 @@ final class RG_PS1_Mailer {
 			$attachments = array();
 			foreach ( (array) json_decode( (string) $message['attachment_ids'], true ) as $upload_id ) {
 				$upload = $this->database->find_upload( (string) $message['application_id'], (string) $upload_id );
+				if ( ! $upload || 'ready' !== $upload['status'] ) {
+					continue;
+				}
 				if ( $upload ) {
 					$path = $this->storage->path_for( (string) $upload['stored_name'] );
 					if ( $path ) {
@@ -129,6 +141,30 @@ final class RG_PS1_Mailer {
 				$this->database->mark_email_failed( (string) $message['id'], (int) $message['attempts'] + 1, 'wp_mail returned false.' );
 			}
 		}
+	}
+
+	private function review_address(): string {
+		return defined( 'RG_PS1_REVIEW_EMAIL' ) ? sanitize_email( (string) RG_PS1_REVIEW_EMAIL ) : '';
+	}
+
+	private function enqueue_internal_notice( string $application_id, string $kind, string $to, string $subject, string $body, array $attachment_ids ): bool {
+		$now = gmdate( 'Y-m-d H:i:s' );
+		return $this->database->enqueue_email(
+			array(
+				'id'             => wp_generate_uuid4(),
+				'application_id' => $application_id,
+				'kind'           => $kind,
+				'to_addresses'   => wp_json_encode( array( $to ) ),
+				'reply_to'       => null,
+				'subject'        => $subject,
+				'text_body'      => $body,
+				'html_body'      => nl2br( esc_html( $body ) ),
+				'attachment_ids' => wp_json_encode( $attachment_ids ),
+				'attempts'       => 0,
+				'available_at'   => $now,
+				'created_at'     => $now,
+			)
+		);
 	}
 
 	public function sender_name( string $current_name ): string {

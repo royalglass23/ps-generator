@@ -10,8 +10,8 @@ This is a separate WordPress-native implementation of the Royal Glass PS1 applic
 - Dedicated WordPress tables store applications, private-upload metadata, rate-limit buckets, status history, and a durable email outbox.
 - Resume tokens are generated from 32 random bytes; only SHA-256 hashes are stored. Resume links put the bearer token in the URL fragment, and the browser removes that fragment after capturing it.
 - Submission locking and email queueing occur in one database transaction.
-- Files are validated by extension, detected MIME type, size, and file signature before they are accepted.
-- WordPress scheduled events retry queued email and remove expired drafts and their private files.
+- Optional files are held outside the public web root and validated by extension, detected MIME type, size, and signature. Structurally valid files are attached directly to the staff review email; the applicant confirmation has no attachments.
+- WordPress scheduled events retry queued email, escalate unresolved reviews after 14 days, remove unresolved intake after 30 days, and remove reviewed intake seven days after staff confirms the ServiceM8 outcome.
 
 The visual journey, wording, validation rules, system catalogue, and approved image assets were adapted from the existing Next.js implementation. The PHP backend is new because WordPress uses PHP and MySQL rather than Next.js and PostgreSQL.
 
@@ -26,15 +26,19 @@ define( 'RG_PS1_RATE_LIMIT_SECRET', 'at-least-32-random-characters' );
 define( 'RG_PS1_TURNSTILE_SITE_KEY', 'public-site-key' );
 define( 'RG_PS1_TURNSTILE_SECRET_KEY', 'private-secret-key' );
 define( 'RG_PS1_GOOGLE_MAPS_API_KEY', 'browser-key-restricted-to-royalglass.co.nz' );
-define( 'RG_PS1_SERVICEM8_EMAIL', 'the-approved-servicem8-inbox@example.com' );
+define( 'RG_PS1_REVIEW_EMAIL', 'ps1-review@royalglass.co.nz' );
 define( 'RG_PS1_SUPPORT_EMAIL', 'support@royalglass.co.nz' );
 ```
 
 `RG_PS1_PRIVATE_UPLOAD_DIR` should point outside the public web root and must be writable by PHP. Uploads remain disabled until it is configured. The plugin also writes `.htaccess` and `index.php` denial files as defence in depth, but those files are not a substitute for storage outside the web root.
 
+The plugin does not perform malware scanning. Staff review attachments on Royal Glass-managed Windows devices protected by Microsoft Defender. This is an explicitly accepted residual risk: extension, MIME, size, and signature checks reject malformed or unsupported input, but they do not establish that a file is free of malware. Do not open attachments on unmanaged devices, and do not configure a third-party upload-scanning API without a separate privacy and processor review.
+
 `RG_PS1_GOOGLE_MAPS_API_KEY` is a browser key, so it is intentionally sent to the page. Restrict it in Google Cloud to the Maps JavaScript API and Places API (New), and to the production referrer `https://royalglass.co.nz/*` (plus any explicit staging origin used for testing).
 
-The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin queues both the ServiceM8/support message and applicant confirmation before it locks the application, then retries failed messages through the outbox. PS1 emails set the visible sender to `PS1 Generator <support@royalglass.co.nz>` at the final PHPMailer boundary so a site-wide SMTP display name such as `Royal Glass` does not replace it; the SMTP provider may still show its authenticated envelope address as “on behalf of,” which is expected.
+The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin queues a staff-review message with any optional uploads attached and a separate attachment-free applicant confirmation before it locks the application, then retries failed messages through the outbox. Submission does not email ServiceM8 or create a Job Card. PS1 emails set the visible sender to `PS1 Generator <support@royalglass.co.nz>` at the final PHPMailer boundary so a site-wide SMTP display name such as `Royal Glass` does not replace it; the SMTP provider may still show its authenticated envelope address as “on behalf of,” which is expected.
+
+After staff create the accepted Job Card or record the unaccepted non-job outcome in ServiceM8, an authenticated WordPress administrator records that outcome through `POST /wp-json/royal-glass-ps1/v1/applications/{id}/outcome` using `outcome`, `serviceM8Reference`, and `applicantContacted`. Accepted outcomes require the ServiceM8 reference; unaccepted outcomes also require confirmation that the applicant was called. This starts the seven-day WordPress recovery window.
 
 ## Installation and rollout
 
@@ -44,7 +48,7 @@ The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin
 4. Run `npm run package` to create `../artifacts/royal-glass-ps1-native.zip`.
 5. Install and activate the ZIP on staging first. Activation creates only the dedicated `wp_rg_ps1_*` tables and two scheduled hooks.
 6. Create or reuse a draft `/ps1` page containing only `[royal_glass_ps1]`.
-7. Validate draft creation, refresh/resume, uploads, removal, submission, both emails, expiry, rate limiting, and mobile layout.
+7. Validate draft creation, refresh/resume, supported and rejected uploads, removal, direct staff attachments, attachment-free applicant confirmation, staff outcome recording, 7/14/30-day retention transitions, rate limiting, Microsoft Defender handling on the staff device, and mobile layout.
 8. Configure a Bluehost system cron to request `wp-cron.php` regularly. WordPress's traffic-driven cron alone can delay retry and retention jobs on a quiet site.
 9. Publish only after a production-shaped staging run passes and publication is explicitly approved.
 
