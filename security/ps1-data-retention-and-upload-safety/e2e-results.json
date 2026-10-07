@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "feature": "ps1-data-retention-and-upload-safety",
+  "commit": "5a21198a5c67cef1c11f002c11b2a3a06f4c9ede",
+  "command": "not run: isolated production-like WordPress, synthetic SMTP, deterministic cron fixtures, managed Defender endpoint, and browser runner are unavailable",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-wordpress-staging-unavailable",
+    "baseUrl": "unavailable://isolated-wordpress-staging",
+    "production": false,
+    "fingerprint": "sha256:41be75ff581f2c5a13cdb211ad993f85ef93ec04015980ccf0fa5779debb3e8a"
+  },
+  "configHash": "sha256:691e62e0ebaf4aa4a5cf2f90ac7778b962d8fc894ee874af698f4cf280678cfc",
+  "fixtureVersion": "missing-staging-smtp-cron-browser-defender-fixtures",
+  "matrixHash": "sha256:5668f79f9140d17b15fca26152f75aa96edc4669a20a332894f83bca50bed924",
+  "projects": ["chromium-required-not-configured"],
+  "coverage": {
+    "required": 10,
+    "covered": 0
+  },
+  "counts": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "not-generated-no-strict-e2e-runner",
+    "traces": []
+  },
+  "verdict": "BLOCKED"
+}

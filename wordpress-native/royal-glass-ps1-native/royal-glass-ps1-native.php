@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Royal Glass PS1 Application (Native)
  * Description: Runs the Royal Glass PS1 application directly in WordPress without an iframe or external application host.
- * Version: 0.1.10
+ * Version: 0.2.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Royal Glass
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RG_PS1_NATIVE_VERSION', '0.1.10' );
+define( 'RG_PS1_NATIVE_VERSION', '0.2.0' );
 define( 'RG_PS1_NATIVE_FILE', __FILE__ );
 define( 'RG_PS1_NATIVE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RG_PS1_NATIVE_URL', plugin_dir_url( __FILE__ ) );
@@ -43,10 +43,14 @@ final class RG_PS1_Native_Plugin {
 	private function __construct() {
 		global $wpdb;
 		$this->database = new RG_PS1_Database( $wpdb );
+		if ( RG_PS1_Database::SCHEMA_VERSION !== (string) get_option( 'rg_ps1_native_schema_version', '' ) ) {
+			$this->database->install();
+		}
 		$this->storage  = new RG_PS1_Storage();
 		$this->mailer   = new RG_PS1_Mailer( $this->database, $this->storage );
 		$this->service  = new RG_PS1_Service( $this->database, new RG_PS1_Validator(), $this->storage, $this->mailer );
 		$this->rest     = new RG_PS1_REST_Controller( $this->service, $this->storage );
+		self::ensure_schedules();
 
 		add_action( 'rest_api_init', array( $this->rest, 'register_routes' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_page_assets' ), 1 );
@@ -60,6 +64,10 @@ final class RG_PS1_Native_Plugin {
 	public static function activate(): void {
 		global $wpdb;
 		( new RG_PS1_Database( $wpdb ) )->install();
+		self::ensure_schedules();
+	}
+
+	private static function ensure_schedules(): void {
 		if ( ! wp_next_scheduled( 'rg_ps1_native_cleanup' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'rg_ps1_native_cleanup' );
 		}
@@ -118,7 +126,7 @@ final class RG_PS1_Native_Plugin {
 			return;
 		}
 		$missing = array();
-		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_GOOGLE_MAPS_API_KEY', 'RG_PS1_SERVICEM8_EMAIL' ) as $constant ) {
+		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_GOOGLE_MAPS_API_KEY', 'RG_PS1_REVIEW_EMAIL' ) as $constant ) {
 			if ( ! defined( $constant ) || '' === (string) constant( $constant ) ) {
 				$missing[] = $constant;
 			}

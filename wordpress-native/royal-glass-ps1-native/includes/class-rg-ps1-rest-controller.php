@@ -59,6 +59,15 @@ final class RG_PS1_REST_Controller {
 			'/applications/drafts/(?P<id>[0-9a-fA-F-]{36})/submit',
 			array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => array( $this, 'submit' ), 'permission_callback' => $public )
 		);
+		register_rest_route(
+			self::NAMESPACE,
+			'/applications/(?P<id>[0-9a-fA-F-]{36})/outcome',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'record_outcome' ),
+				'permission_callback' => static fn(): bool => current_user_can( 'manage_options' ),
+			)
+		);
 	}
 
 	public function create_draft( WP_REST_Request $request ): array|WP_Error {
@@ -99,6 +108,16 @@ final class RG_PS1_REST_Controller {
 
 	public function submit( WP_REST_Request $request ): array|WP_Error {
 		return $this->service->submit( (string) $request['id'], $this->bearer( $request ), $request->get_json_params() );
+	}
+
+	public function record_outcome( WP_REST_Request $request ): array|WP_Error {
+		$params = (array) $request->get_json_params();
+		return $this->service->record_outcome(
+			(string) $request['id'],
+			(string) ( $params['outcome'] ?? '' ),
+			(string) ( $params['serviceM8Reference'] ?? '' ),
+			true === ( $params['applicantContacted'] ?? false )
+		);
 	}
 
 	private function bearer( WP_REST_Request $request ): string {

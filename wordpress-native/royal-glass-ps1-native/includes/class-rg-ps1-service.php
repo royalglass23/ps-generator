@@ -201,31 +201,70 @@ final class RG_PS1_Service {
 		return array( 'reference' => $reference, 'submittedAt' => gmdate( DATE_ATOM, strtotime( $now . ' UTC' ) ) );
 	}
 
-	public function cleanup(): void {
-		foreach ( $this->database->expired_drafts() as $record ) {
-			$id      = (string) $record['id'];
-			$uploads = $this->database->uploads_for_application( $id );
-			$all_deleted = true;
-			foreach ( $uploads as $upload ) {
-				if ( ! $this->storage->delete( (string) $upload['stored_name'] ) ) {
-					$all_deleted = false;
-					continue;
-				}
-				$this->database->delete_upload( $id, (string) $upload['id'] );
-			}
-			if ( $all_deleted ) {
-				$this->database->transaction(
-					function () use ( $id ) {
-						if ( ! $this->database->delete_draft_resume_emails( $id ) ) {
-							return false;
-						}
-						return $this->database->expire_draft( $id );
-					}
-				);
-			}
+	public function record_outcome( string $id, string $outcome, string $servicem8_reference, bool $applicant_contacted ): array|WP_Error {
+		if ( ! in_array( $outcome, array( 'accepted', 'unaccepted' ), true ) ) {
+			return new WP_Error( 'INVALID_OUTCOME', 'Choose accepted or unaccepted.', array( 'status' => 422 ) );
 		}
+		$servicem8_reference = sanitize_text_field( $servicem8_reference );
+		if ( '' === $servicem8_reference ) {
+			return new WP_Error( 'SERVICEM8_REFERENCE_REQUIRED', 'Confirm the ServiceM8 record before recording the outcome.', array( 'status' => 422 ) );
+		}
+		if ( 'unaccepted' === $outcome && ! $applicant_contacted ) {
+			return new WP_Error( 'APPLICANT_CONTACT_REQUIRED', 'Confirm the applicant was contacted by phone.', array( 'status' => 422 ) );
+		}
+		$now_timestamp = time();
+		$now = gmdate( 'Y-m-d H:i:s', $now_timestamp );
+		$retention_expires = gmdate( 'Y-m-d H:i:s', $now_timestamp + 7 * DAY_IN_SECONDS );
+		$recorded = $this->database->transaction(
+			fn(): bool => $this->database->record_outcome( $id, $outcome, $servicem8_reference, $now, $retention_expires )
+		);
+		if ( ! $recorded ) {
+			return new WP_Error( 'APPLICATION_NOT_AVAILABLE', 'The application is not awaiting a staff outcome.', array( 'status' => 409 ) );
+		}
+		return array( 'status' => $outcome, 'retainedUntil' => gmdate( DATE_ATOM, $now_timestamp + 7 * DAY_IN_SECONDS ) );
+	}
+
+	public function cleanup(): void {
+		$now = time();
+		foreach ( $this->database->expired_drafts() as $record ) {
+			$this->purge_application( (string) $record['id'], 'draft' );
+		}
+		foreach ( $this->database->applications_due_review_escalation( gmdate( 'Y-m-d H:i:s', $now - 14 * DAY_IN_SECONDS ) ) as $record ) {
+			$this->database->transaction(
+				function () use ( $record, $now ) {
+					if ( ! $this->mailer->enqueue_review_escalation( (string) $record['id'], (string) $record['reference'] ) ) {
+						return false;
+					}
+					return $this->database->mark_review_escalated( (string) $record['id'], gmdate( 'Y-m-d H:i:s', $now ) );
+				}
+			);
+		}
+		foreach ( $this->database->applications_due_intake_expiry( gmdate( 'Y-m-d H:i:s', $now - 30 * DAY_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', $now ) ) as $record ) {
+			$this->purge_application( (string) $record['id'], (string) $record['status'] );
+		}
+		$this->mailer->dispatch_due();
 		$this->database->delete_expired_rate_limits();
 		$this->database->delete_expired_outbox();
+	}
+
+	private function purge_application( string $id, string $expected_status ): bool {
+		foreach ( $this->database->all_uploads_for_application( $id ) as $upload ) {
+			if ( '' !== (string) $upload['stored_name'] && ! $this->storage->delete( (string) $upload['stored_name'] ) ) {
+				return false;
+			}
+		}
+		$now = gmdate( 'Y-m-d H:i:s' );
+		return (bool) $this->database->transaction(
+			function () use ( $id, $expected_status, $now ) {
+				if ( ! $this->database->delete_application_outbox( $id ) || ! $this->database->delete_application_upload_records( $id ) ) {
+					return false;
+				}
+				if ( 'draft' === $expected_status ) {
+					return $this->database->expire_draft( $id );
+				}
+				return $this->database->expire_intake( $id, $expected_status, $now );
+			}
+		);
 	}
 
 	private function authorize_draft( string $id, string $token ): array|WP_Error {
