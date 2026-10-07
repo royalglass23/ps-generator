@@ -15,7 +15,7 @@
 | Strict E2E matrix | BLOCKED | 0/10 |
 | Personal-data retention | PASS local / BLOCKED operations | 7/14/30 works; cron/backups/provider copies unproved |
 | Logging/monitoring | FAIL | Scheduled-job and deletion failures lack actionable alerts |
-| Package integrity | PASS | 47/47 source parity; SHA-256 `6A025FF73B9C3A9F0F281DEA33C65796234A41BF4CE8E3C4D25BA04E7A6B5589` |
+| Package integrity | PASS | Version `0.2.1`; 47/47 source parity; SHA-256 `9839FE84A1CD6D001A1C805DF12E70EAB6BEF4EAA350FAA9978594E38E2F44BF` |
 
 ## Decision
 

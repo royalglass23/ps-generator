@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Royal Glass PS1 Application (Native)
  * Description: Runs the Royal Glass PS1 application directly in WordPress without an iframe or external application host.
- * Version: 0.2.0
+ * Version: 0.2.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Royal Glass
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RG_PS1_NATIVE_VERSION', '0.2.0' );
+define( 'RG_PS1_NATIVE_VERSION', '0.2.1' );
 define( 'RG_PS1_NATIVE_FILE', __FILE__ );
 define( 'RG_PS1_NATIVE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RG_PS1_NATIVE_URL', plugin_dir_url( __FILE__ ) );
@@ -126,7 +126,7 @@ final class RG_PS1_Native_Plugin {
 			return;
 		}
 		$missing = array();
-		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_GOOGLE_MAPS_API_KEY', 'RG_PS1_REVIEW_EMAIL' ) as $constant ) {
+		foreach ( array( 'RG_PS1_RATE_LIMIT_SECRET', 'RG_PS1_TURNSTILE_SITE_KEY', 'RG_PS1_TURNSTILE_SECRET_KEY', 'RG_PS1_GOOGLE_MAPS_API_KEY', 'RG_PS1_SERVICEM8_EMAIL' ) as $constant ) {
 			if ( ! defined( $constant ) || '' === (string) constant( $constant ) ) {
 				$missing[] = $constant;
 			}

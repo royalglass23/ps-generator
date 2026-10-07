@@ -144,7 +144,7 @@ final class RG_PS1_Mailer {
 	}
 
 	private function review_address(): string {
-		return defined( 'RG_PS1_REVIEW_EMAIL' ) ? sanitize_email( (string) RG_PS1_REVIEW_EMAIL ) : '';
+		return defined( 'RG_PS1_SERVICEM8_EMAIL' ) ? sanitize_email( (string) RG_PS1_SERVICEM8_EMAIL ) : '';
 	}
 
 	private function enqueue_internal_notice( string $application_id, string $kind, string $to, string $subject, string $body, array $attachment_ids ): bool {
