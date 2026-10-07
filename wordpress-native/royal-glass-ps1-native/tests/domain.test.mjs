@@ -7,6 +7,7 @@ import {
   initialJourneyState,
   nextLocationTypes,
   uploadRemovalDisabled,
+  uploadStatusLabel,
   validateInput,
   validateUpload,
 } from "../assets/domain.mjs";
@@ -60,6 +61,13 @@ test("prevents removal while an upload or deletion request is active", () => {
   assert.equal(uploadRemovalDisabled("removing"), true);
   assert.equal(uploadRemovalDisabled("uploaded"), false);
   assert.equal(uploadRemovalDisabled("failed"), false);
+});
+
+test("uses customer-facing upload status labels", () => {
+  assert.equal(uploadStatusLabel("uploading"), "Uploading…");
+  assert.equal(uploadStatusLabel("uploaded"), "Uploaded");
+  assert.equal(uploadStatusLabel("failed"), "Upload failed");
+  assert.equal(uploadStatusLabel("removing"), "Removing…");
 });
 
 test("builds draft and submission payloads without leaking inactive decision-maker fields", () => {

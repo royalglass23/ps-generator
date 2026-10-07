@@ -149,3 +149,15 @@ test("active upload removal is blocked in both the handler and rendered control"
   assert.match(app, /removeUpload\(id\)[\s\S]*?uploadRemovalDisabled\(item\.status\)[\s\S]*?return/);
   assert.match(app, /data-action="remove-upload"[^>]*uploadRemovalDisabled\(item\.status\)/);
 });
+
+test("upload rows expose branded progress and customer-facing status", async () => {
+  const app = await readFile(new URL("assets/app.js", root), "utf8");
+  const styles = await readFile(new URL("assets/app.css", root), "utf8");
+  assert.match(app, /uploadStatusLabel\(item\.status\)/);
+  assert.match(app, /item\.status\s*===\s*"uploading"[\s\S]*?role="progressbar"/);
+  assert.match(app, /aria-label="Uploading \$\{escapeHtml\(item\.name\)\}"/);
+  assert.match(styles, /\.upload-progress\s*\{[^}]*background:\s*var\(--rg-line\)/);
+  assert.match(styles, /\.upload-progress\s*>\s*span\s*\{[^}]*background:\s*var\(--rg-teal\)/);
+  assert.match(styles, /\.file-actions\s*\{[^}]*align-items:\s*baseline/);
+  assert.match(styles, /prefers-reduced-motion:[\s\S]*?\.upload-progress\s*>\s*span\s*\{[^}]*animation:\s*none/);
+});

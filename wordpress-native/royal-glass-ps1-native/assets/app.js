@@ -6,6 +6,7 @@ import {
   nextLocationTypes,
   stateFromDraft,
   uploadRemovalDisabled,
+  uploadStatusLabel,
   validateInput,
   validateUpload,
 } from "./domain.mjs";
@@ -438,7 +439,12 @@ class Ps1Application {
     }
 
     if (this.step === 4) {
-      const files = this.uploads.map((item)=>`<div><span><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}">${escapeHtml(item.status)}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}"${uploadRemovalDisabled(item.status)?" disabled aria-disabled=\"true\"":""}>Remove</button></span></div>`).join("");
+      const files = this.uploads.map((item) => {
+        const progress = item.status === "uploading"
+          ? `<div class="upload-progress" role="progressbar" aria-label="Uploading ${escapeHtml(item.name)}" aria-valuetext="Uploading"><span></span></div>`
+          : "";
+        return `<div class="file-item"><span class="file-details"><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}" aria-live="polite">${escapeHtml(uploadStatusLabel(item.status))}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}"${uploadRemovalDisabled(item.status)?" disabled aria-disabled=\"true\"":""}>Remove</button></span>${progress}</div>`;
+      }).join("");
       return `<p class="section-intro">Add anything you already have. This section is optional.</p>${this.securityCheck()}${config.uploadsEnabled?`<label class="upload-zone${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}"><input type="file" data-action="files" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg"${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}><strong>${this.uploads.length>=5?"Maximum of 5 files reached":this.session||this.turnstileToken?"Select drawings, documents or photos":"Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label>`:`<div class="notice amber"><strong>Private uploads are not configured yet</strong><p>You can continue without documents. An administrator must configure private storage before publication.</p></div>`}<div class="file-list">${files}</div><div class="notice">Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.</div>`;
     }
 
