@@ -26,6 +26,22 @@ test("plugin mail uses the PS1 Application sender name without replacing the con
   assert.doesNotMatch(source, /From:\s*PS1 Application\s*</);
 });
 
+test("applicant submission mail retains the branded Royal Glass confirmation", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+  for (const marker of [
+    "We&#039;ve received your application",
+    "Royal Glass logo",
+    "Your application summary",
+    "What happens next",
+    "Application reference",
+    "See Royal Glass projects and services",
+  ]) {
+    assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(source, /'html_body'\s*=>\s*\$applicant_html/);
+  assert.doesNotMatch(source, /'html_body'\s*=>\s*nl2br\( esc_html\( \$confirmation \) \)/);
+});
+
 test("private upload implementation blocks direct web access", async () => {
   const source = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
   assert.match(source, /RG_PS1_PRIVATE_UPLOAD_DIR/);
@@ -118,6 +134,13 @@ test("the WordPress embed does not duplicate site branding and darkens the stick
   assert.match(app, /window\.scrollY > 0/);
   assert.match(app, /rg-ps1-nav-scrolled/);
   assert.match(styles, /body\.rg-ps1-nav-scrolled #masthead\s*\{[^}]*background-color:\s*#3d3d3d\s*!important/);
+});
+
+test("the WordPress hero breaks out to the viewport and places its content low over the image", async () => {
+  const styles = await readFile(new URL("assets/app.css", root), "utf8");
+  assert.match(styles, /\.rg-ps1-native-root \.portal-masthead\s*\{[^}]*width:\s*100vw[^}]*margin-left:\s*calc\(50% - 50vw\)/);
+  assert.match(styles, /\.rg-ps1 \.portal-masthead\s*\{[^}]*align-items:\s*end/);
+  assert.match(styles, /\.rg-ps1 \.masthead-content\s*\{[^}]*padding:\s*3rem 0 4\.25rem/);
 });
 
 test("the job address field wires Google Places autocomplete with a manual-entry fallback", async () => {
