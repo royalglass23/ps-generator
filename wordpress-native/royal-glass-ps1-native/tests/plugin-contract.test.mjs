@@ -26,6 +26,22 @@ test("plugin mail uses the PS1 Application sender name without replacing the con
   assert.doesNotMatch(source, /From:\s*PS1 Application\s*</);
 });
 
+test("applicant submission mail retains the branded Royal Glass confirmation", async () => {
+  const source = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+  for (const marker of [
+    "We&#039;ve received your application",
+    "Royal Glass logo",
+    "Your application summary",
+    "What happens next",
+    "Application reference",
+    "See Royal Glass projects and services",
+  ]) {
+    assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(source, /'html_body'\s*=>\s*\$applicant_html/);
+  assert.doesNotMatch(source, /'html_body'\s*=>\s*nl2br\( esc_html\( \$confirmation \) \)/);
+});
+
 test("private upload implementation blocks direct web access", async () => {
   const source = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
   assert.match(source, /RG_PS1_PRIVATE_UPLOAD_DIR/);
