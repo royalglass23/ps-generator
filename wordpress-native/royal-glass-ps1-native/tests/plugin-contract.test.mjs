@@ -95,11 +95,10 @@ test("private storage rejects public paths and verifies denial files", async () 
   assert.match(storage, /hash_equals\( \$deny/);
 });
 
-test("return-later and recovery paths are explicit", async () => {
+test("return-link action is absent and recovery paths remain explicit", async () => {
   const app = await readFile(new URL("assets/app.js", root), "utf8");
-  assert.match(app, /data-action="save-later"/);
-  assert.match(app, /\/resume-link/);
-  assert.match(app, /finally \{[\s\S]*?this\.busy = false/);
+  assert.doesNotMatch(app, /data-action="save-later"/);
+  assert.doesNotMatch(app, /\/resume-link/);
   assert.match(app, /data-action="restart"/);
   assert.match(app, /this\.turnstileToken = "";[\s\S]*?throw error/);
 });
