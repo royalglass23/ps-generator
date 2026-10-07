@@ -6,6 +6,7 @@ import {
   nextLocationTypes,
   stateFromDraft,
   uploadRemovalDisabled,
+  uploadStatusLabel,
   validateInput,
   validateUpload,
 } from "./domain.mjs";
@@ -104,7 +105,7 @@ function locationTypesSummary(types, options) {
   return labels.length <= 2 ? labels.join(", ") : `${labels.length} areas selected`;
 }
 
-class Ps1Application {
+export class Ps1Application {
   constructor(root) {
     this.root = root;
     this.state = structuredClone(initialJourneyState);
@@ -119,6 +120,7 @@ class Ps1Application {
     this.turnstileToken = "";
     this.turnstileWidget = null;
 	this.turnstileFailed = false;
+	this.turnstileWaiter = null;
 	this.restoreFailed = false;
     this.openLocationMenu = null;
     this.manualAddress = !config.googleMapsApiKey;
@@ -188,13 +190,13 @@ class Ps1Application {
   async ensureSession() {
     if (this.session) return this.session;
     if (!config.turnstileSiteKey) throw new Error("The security check is not configured yet.");
-    if (!this.turnstileToken) throw new Error("Complete the security check before saving.");
+	const turnstileToken = this.turnstileToken || await this.waitForTurnstileToken();
 	let created;
 	try {
 	  created = await this.api("/applications/drafts", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ turnstileToken: this.turnstileToken }),
+		body: JSON.stringify({ turnstileToken }),
 	  });
 	} catch (error) {
 	  this.turnstileToken = "";
@@ -210,6 +212,48 @@ class Ps1Application {
     url.hash = "";
     history.replaceState({}, "", url);
     return created;
+  }
+
+  waitForTurnstileToken() {
+	if (this.turnstileToken) return Promise.resolve(this.turnstileToken);
+	if (this.turnstileFailed) return Promise.reject(new Error("The security check could not load. Try again in a moment."));
+	if (this.turnstileWaiter) return this.turnstileWaiter.promise;
+	let resolve;
+	let reject;
+	const promise = new Promise((resolvePromise, rejectPromise) => {
+	  resolve = resolvePromise;
+	  reject = rejectPromise;
+	});
+	this.turnstileWaiter = { promise, resolve, reject };
+	return promise;
+  }
+
+  completeTurnstile(token) {
+	this.turnstileToken = token;
+	this.turnstileFailed = false;
+	this.error = "";
+	this.turnstileWaiter?.resolve(token);
+	this.turnstileWaiter = null;
+	this.removeTurnstile();
+	this.render();
+  }
+
+  failTurnstile(message = "The security check could not load. Try again in a moment.") {
+	const error = new Error(message);
+	this.turnstileToken = "";
+	this.turnstileFailed = true;
+	this.error = error.message;
+	this.turnstileWaiter?.reject(error);
+	this.turnstileWaiter = null;
+	this.removeTurnstile();
+	this.render();
+  }
+
+  retryTurnstile() {
+	this.turnstileFailed = false;
+	this.error = "";
+	if (!window.turnstile) document.querySelector('script[data-rg-turnstile]')?.remove();
+	this.render();
   }
 
   async persist(message = "Draft saved") {
@@ -262,7 +306,7 @@ class Ps1Application {
     if (action === "add-location") { this.state.site.locations.push({ types: [], environment: "", other: "" }); this.openLocationMenu = null; this.render(); }
     if (action === "remove-location") { this.state.site.locations.splice(Number(button.dataset.index), 1); this.openLocationMenu = null; this.render(); }
     if (action === "remove-upload") await this.removeUpload(button.dataset.id);
-	if (action === "retry-turnstile") { this.turnstileFailed = false; this.error = ""; this.render(); }
+	if (action === "retry-turnstile") this.retryTurnstile();
 	if (action === "manual-address") { this.manualAddress = true; this.render(); }
 	if (action === "restart") this.restart();
   }
@@ -438,7 +482,12 @@ class Ps1Application {
     }
 
     if (this.step === 4) {
-      const files = this.uploads.map((item)=>`<div><span><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}">${escapeHtml(item.status)}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}"${uploadRemovalDisabled(item.status)?" disabled aria-disabled=\"true\"":""}>Remove</button></span></div>`).join("");
+      const files = this.uploads.map((item) => {
+        const progress = item.status === "uploading"
+          ? `<div class="upload-progress" role="progressbar" aria-label="Uploading ${escapeHtml(item.name)}" aria-valuetext="Uploading"><span></span></div>`
+          : "";
+        return `<div class="file-item"><span class="file-details"><strong>${escapeHtml(item.name)}</strong><small>${Math.ceil(item.sizeBytes/1024)} KB</small></span><span class="file-actions"><b class="upload-status ${item.status}" aria-live="polite">${escapeHtml(uploadStatusLabel(item.status))}</b><button type="button" class="text-button" data-action="remove-upload" data-id="${item.id}"${uploadRemovalDisabled(item.status)?" disabled aria-disabled=\"true\"":""}>Remove</button></span>${progress}</div>`;
+      }).join("");
       return `<p class="section-intro">Add anything you already have. This section is optional.</p>${this.securityCheck()}${config.uploadsEnabled?`<label class="upload-zone${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}"><input type="file" data-action="files" multiple accept=".pdf,.jpg,.jpeg,.png,.dwg"${this.uploads.length>=5||(!this.session&&!this.turnstileToken)?" disabled":""}><strong>${this.uploads.length>=5?"Maximum of 5 files reached":this.session||this.turnstileToken?"Select drawings, documents or photos":"Complete the security check to add files"}</strong><span>PDF, JPG, PNG or DWG · up to 10 MB each</span></label>`:`<div class="notice amber"><strong>Private uploads are not configured yet</strong><p>You can continue without documents. An administrator must configure private storage before publication.</p></div>`}<div class="file-list">${files}</div><div class="notice">Don’t have everything yet? Submit what you have. You can send additional drawings, photos, or details afterward using your application reference.</div>`;
     }
 
@@ -517,16 +566,16 @@ class Ps1Application {
       this.turnstileWidget = window.turnstile.render(container, {
         sitekey: config.turnstileSiteKey,
         theme: "light",
-        callback: (token) => { this.turnstileToken = token; this.error = ""; this.removeTurnstile(); this.render(); },
+        callback: (token) => this.completeTurnstile(token),
         "expired-callback": () => { this.turnstileToken = ""; this.removeTurnstile(); this.render(); },
-		"error-callback": () => { this.turnstileFailed = true; this.error = "The security check could not load. Try again in a moment."; this.removeTurnstile(); this.render(); },
+		"error-callback": () => this.failTurnstile(),
       });
     };
     if (window.turnstile) { render(); return; }
     if (!document.querySelector('script[data-rg-turnstile]')) {
       const script = document.createElement("script");
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true; script.defer = true; script.dataset.rgTurnstile = "true"; script.addEventListener("load", render); document.head.append(script);
+      script.async = true; script.defer = true; script.dataset.rgTurnstile = "true"; script.addEventListener("load", render); script.addEventListener("error", () => this.failTurnstile()); document.head.append(script);
     } else setTimeout(render, 0);
   }
 

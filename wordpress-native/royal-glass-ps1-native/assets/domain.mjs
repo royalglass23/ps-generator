@@ -101,6 +101,15 @@ export function uploadRemovalDisabled(status) {
   return status === "uploading" || status === "removing";
 }
 
+export function uploadStatusLabel(status) {
+  return ({
+    uploading: "Uploading…",
+    uploaded: "Uploaded",
+    failed: "Upload failed",
+    removing: "Removing…",
+  })[status] ?? status;
+}
+
 function decisionMakerForRole(state) {
   if (state.applicant.role !== "architect" && state.applicant.role !== "builder") return undefined;
   return {
