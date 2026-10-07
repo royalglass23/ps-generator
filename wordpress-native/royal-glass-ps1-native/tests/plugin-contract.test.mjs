@@ -136,11 +136,12 @@ test("the WordPress embed does not duplicate site branding and darkens the stick
   assert.match(styles, /body\.rg-ps1-nav-scrolled #masthead\s*\{[^}]*background-color:\s*#3d3d3d\s*!important/);
 });
 
-test("the WordPress hero breaks out to the viewport and places its content low over the image", async () => {
+test("the WordPress hero breaks out to the viewport and matches the Royal Glass hero rhythm", async () => {
   const styles = await readFile(new URL("assets/app.css", root), "utf8");
   assert.match(styles, /\.rg-ps1-native-root \.portal-masthead\s*\{[^}]*width:\s*100vw[^}]*margin-left:\s*calc\(50% - 50vw\)/);
-  assert.match(styles, /\.rg-ps1 \.portal-masthead\s*\{[^}]*align-items:\s*end/);
-  assert.match(styles, /\.rg-ps1 \.masthead-content\s*\{[^}]*padding:\s*3rem 0 4\.25rem/);
+  assert.match(styles, /\.rg-ps1 \.portal-masthead\s*\{[^}]*min-height:\s*40vh[^}]*align-items:\s*center/);
+  assert.match(styles, /\.rg-ps1 \.masthead-content\s*\{[^}]*padding:\s*1\.5rem 0/);
+  assert.match(styles, /\.rg-ps1 \.primer span\s*\{[^}]*font-size:\s*1rem/);
 });
 
 test("the job address field wires Google Places autocomplete with a manual-entry fallback", async () => {
