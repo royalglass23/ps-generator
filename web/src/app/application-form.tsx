@@ -347,12 +347,34 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draft
   const [submitted, setSubmitted] = useState<{ reference: string; submittedAt: string } | null>(null);
   const turnstileContainer = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
+  const turnstileTokenRef = useRef("");
+  const turnstileFailureRef = useRef<Error | null>(null);
+  const turnstileWaiter = useRef<{
+    promise: Promise<string>;
+    resolve: (token: string) => void;
+    reject: (reason: Error) => void;
+  } | null>(null);
   const sessionPromise = useRef<Promise<DraftSession> | null>(null);
   const sessionRef = useRef<DraftSession | null>(null);
   const uploadItemsRef = useRef<UploadItem[]>([]);
   const activeUploads = useRef(0);
   const removedUploadItems = useRef(new Set<string>());
   const nextUploadItemId = useRef(0);
+
+  function failTurnstile() {
+    const reason = new Error("The security check could not load. Refresh the page and try again.");
+    turnstileTokenRef.current = "";
+    turnstileFailureRef.current = reason;
+    turnstileWaiter.current?.reject(reason);
+    turnstileWaiter.current = null;
+    setTurnstileToken("");
+    setError(reason.message);
+  }
+
+  function readyTurnstile() {
+    turnstileFailureRef.current = null;
+    setTurnstileReady(true);
+  }
 
   useEffect(() => {
     if (!draftId) return;
@@ -389,9 +411,19 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draft
     const renderedWidgetId = window.turnstile.render(turnstileContainer.current, {
       sitekey: siteKey,
       theme: "light",
-      callback: (token: string) => { setTurnstileToken(token); setError(""); },
-      "expired-callback": () => setTurnstileToken(""),
-      "error-callback": () => setError("The security check could not load. Refresh the page and try again."),
+      callback: (token: string) => {
+        turnstileTokenRef.current = token;
+        turnstileFailureRef.current = null;
+        setTurnstileToken(token);
+        setError("");
+        turnstileWaiter.current?.resolve(token);
+        turnstileWaiter.current = null;
+      },
+      "expired-callback": () => {
+        turnstileTokenRef.current = "";
+        setTurnstileToken("");
+      },
+      "error-callback": failTurnstile,
     });
     widgetId.current = renderedWidgetId;
     return () => {
@@ -410,12 +442,26 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draft
     setStatus("");
   }
 
+  function waitForTurnstileToken(): Promise<string> {
+    if (turnstileTokenRef.current) return Promise.resolve(turnstileTokenRef.current);
+    if (turnstileFailureRef.current) return Promise.reject(turnstileFailureRef.current);
+    if (turnstileWaiter.current) return turnstileWaiter.current.promise;
+    let resolve!: (token: string) => void;
+    let reject!: (reason: Error) => void;
+    const promise = new Promise<string>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    });
+    turnstileWaiter.current = { promise, resolve, reject };
+    return promise;
+  }
+
   async function ensureSession(): Promise<DraftSession> {
     if (sessionRef.current) return sessionRef.current;
     if (sessionPromise.current) return sessionPromise.current;
     if (!siteKey) throw new Error("The security check is not configured yet.");
-    if (!turnstileToken) throw new Error("Complete the security check before saving.");
-    const creating = createDraftSession(turnstileToken).then((created) => {
+    const securityToken = turnstileTokenRef.current || await waitForTurnstileToken();
+    const creating = createDraftSession(securityToken).then((created) => {
       sessionRef.current = created;
       setSession(created);
       const tokenRemembered = rememberResumeToken(created.id, created.resumeToken, window.sessionStorage);
@@ -430,6 +476,7 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draft
       postEmbedResumeMessage(parentOrigin ?? "", created.id);
       return created;
     }).catch((reason) => {
+      turnstileTokenRef.current = "";
       setTurnstileToken("");
       throw reason;
     }).finally(() => {
@@ -660,7 +707,7 @@ export function ApplicationForm({ siteKey, googleMapsApiKey, parentOrigin, draft
   return (
     <div className="rg-ps1">
       <div className="portal-shell">
-        <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setTurnstileReady(true)} onError={() => setError("The security check could not load. Refresh the page and try again.")} />
+        <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={readyTurnstile} onError={failTurnstile} />
         {googleMapsApiKey ? <Script src={`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&loading=async&v=weekly`} strategy="afterInteractive" onReady={() => setGoogleMapsReady(true)} onError={() => setGoogleMapsFailed(true)} /> : null}
         <header className="portal-masthead">
           <div className="masthead-shade" />

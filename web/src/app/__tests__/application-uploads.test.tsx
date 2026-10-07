@@ -6,12 +6,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApplicationForm } from "../application-form";
 
+const scriptHarness = vi.hoisted(() => ({
+  delayTurnstileFailure: false,
+  failTurnstileScript: undefined as (() => void) | undefined,
+}));
+
 vi.mock("next/script", async () => {
   const React = await import("react");
   return {
-    default: function MockScript({ onReady }: { onReady?: () => void }) {
+    default: function MockScript({ src, onReady, onError }: { src?: string; onReady?: () => void; onError?: () => void }) {
       const onReadyRef = React.useRef(onReady);
-      React.useEffect(() => onReadyRef.current?.(), []);
+      const onErrorRef = React.useRef(onError);
+      React.useEffect(() => {
+        if (src?.includes("challenges.cloudflare.com") && scriptHarness.delayTurnstileFailure) {
+          scriptHarness.failTurnstileScript = () => onErrorRef.current?.();
+          return;
+        }
+        onReadyRef.current?.();
+      }, [src]);
       return null;
     },
   };
@@ -188,6 +200,8 @@ describe("application uploads", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    scriptHarness.delayTurnstileFailure = false;
+    scriptHarness.failTurnstileScript = undefined;
     document.body.innerHTML = '<div id="root"></div>';
     window.history.replaceState({}, "", "/application/draft-1#token=resume-secret");
     window.turnstile = undefined;
@@ -221,6 +235,39 @@ describe("application uploads", () => {
     ));
     await settle();
     return render;
+  }
+
+  async function renderFreshWithDelayedSecurity(fetcher: ReturnType<typeof standardFetcher>) {
+    window.history.replaceState({}, "", "/");
+    let completeSecurityCheck!: (token: string) => void;
+    window.turnstile = {
+      render: vi.fn((_element: HTMLElement, options: Record<string, unknown>) => {
+        completeSecurityCheck = options.callback as (token: string) => void;
+        return "widget-1";
+      }),
+      remove: vi.fn(),
+      reset: vi.fn(),
+    };
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () => root.render(
+      <ApplicationForm siteKey="turnstile-site-key" googleMapsApiKey="" />,
+    ));
+    await settle();
+    return () => completeSecurityCheck("turnstile-token");
+  }
+
+  async function renderFreshWithDelayedScriptFailure(fetcher: ReturnType<typeof standardFetcher>) {
+    window.history.replaceState({}, "", "/");
+    scriptHarness.delayTurnstileFailure = true;
+    vi.stubGlobal("fetch", fetcher);
+    await act(async () => root.render(
+      <ApplicationForm siteKey="turnstile-site-key" googleMapsApiKey="" />,
+    ));
+    await settle();
+    return () => {
+      if (!scriptHarness.failTurnstileScript) throw new Error("Turnstile script failure callback was not captured");
+      scriptHarness.failTurnstileScript();
+    };
   }
 
   it("starts uploading a selected file before final submission", async () => {
@@ -401,6 +448,63 @@ describe("application uploads", () => {
     await act(async () => button("Upload failed — Retry").click());
     await waitFor(() => expect(document.body.textContent).toContain("Uploaded"));
     expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url === "/api/applications/drafts")).toHaveLength(2);
+  });
+
+  it("continues the first submission after the security check completes", async () => {
+    const fetcher = standardFetcher();
+    const completeSecurityCheck = await renderFreshWithDelayedSecurity(fetcher);
+    await goToFreshDocuments();
+    await act(async () => button("Continue").click());
+
+    const inputs = document.querySelectorAll<HTMLInputElement>(".field-grid input");
+    await act(async () => setControlValue(inputs[0], "Jordan Applicant"));
+    await act(async () => setControlValue(inputs[1], "021 555 0101"));
+    await act(async () => setControlValue(inputs[2], "jordan@example.test"));
+    await act(async () => setControlValue(document.querySelector<HTMLSelectElement>(".field-grid select")!, "homeowner"));
+    await act(async () => document.querySelector<HTMLInputElement>('.confirm input[type="checkbox"]')!.click());
+
+    await act(async () => button("Submit application").click());
+    expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url.endsWith("/submit"))).toHaveLength(0);
+
+    await act(async () => completeSecurityCheck());
+    await waitFor(() => expect(document.body.textContent).toContain("PS1-2026-ABC12345"));
+
+    expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url === "/api/applications/drafts")).toHaveLength(1);
+    expect(callsTo(fetcher, (url, init) => init?.method === "POST" && url.endsWith("/submit"))).toHaveLength(1);
+  });
+
+  it("releases a pending submission when the Turnstile script fails", async () => {
+    const fetcher = standardFetcher();
+    const failTurnstileScript = await renderFreshWithDelayedScriptFailure(fetcher);
+    await goToFreshDocuments();
+    await act(async () => button("Continue").click());
+
+    const inputs = document.querySelectorAll<HTMLInputElement>(".field-grid input");
+    await act(async () => setControlValue(inputs[0], "Jordan Applicant"));
+    await act(async () => setControlValue(inputs[1], "021 555 0101"));
+    await act(async () => setControlValue(inputs[2], "jordan@example.test"));
+    await act(async () => setControlValue(document.querySelector<HTMLSelectElement>(".field-grid select")!, "homeowner"));
+    await act(async () => document.querySelector<HTMLInputElement>('.confirm input[type="checkbox"]')!.click());
+
+    await act(async () => button("Submit application").click());
+    expect(button("Submitting…").disabled).toBe(true);
+
+    await act(async () => failTurnstileScript());
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("The security check could not load. Refresh the page and try again.");
+      expect(button("Submit application").disabled).toBe(false);
+    });
+
+    expect(callsTo(fetcher, (url) => url === "/api/applications/drafts")).toHaveLength(0);
+    expect(callsTo(fetcher, (url) => url.endsWith("/submit"))).toHaveLength(0);
+
+    await act(async () => button("Submit application").click());
+    await settle();
+
+    expect(button("Submit application").disabled).toBe(false);
+    expect(document.body.textContent).toContain("The security check could not load. Refresh the page and try again.");
+    expect(callsTo(fetcher, (url) => url === "/api/applications/drafts")).toHaveLength(0);
+    expect(callsTo(fetcher, (url) => url.endsWith("/submit"))).toHaveLength(0);
   });
 
   it("retains an uploaded file for removal retry when post-upload cleanup fails", async () => {
