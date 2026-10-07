@@ -136,6 +136,13 @@ test("the WordPress embed does not duplicate site branding and darkens the stick
   assert.match(styles, /body\.rg-ps1-nav-scrolled #masthead\s*\{[^}]*background-color:\s*#3d3d3d\s*!important/);
 });
 
+test("the WordPress hero breaks out to the viewport and places its content low over the image", async () => {
+  const styles = await readFile(new URL("assets/app.css", root), "utf8");
+  assert.match(styles, /\.rg-ps1-native-root \.portal-masthead\s*\{[^}]*width:\s*100vw[^}]*margin-left:\s*calc\(50% - 50vw\)/);
+  assert.match(styles, /\.rg-ps1 \.portal-masthead\s*\{[^}]*align-items:\s*end/);
+  assert.match(styles, /\.rg-ps1 \.masthead-content\s*\{[^}]*padding:\s*3rem 0 4\.25rem/);
+});
+
 test("the job address field wires Google Places autocomplete with a manual-entry fallback", async () => {
   const plugin = await readFile(new URL("royal-glass-ps1-native.php", root), "utf8");
   const app = await readFile(new URL("assets/app.js", root), "utf8");
