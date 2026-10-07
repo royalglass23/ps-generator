@@ -5,6 +5,11 @@
 body:has(.rg-ps1-native-root) #masthead { transition: background-color .25s ease; }
 body.rg-ps1-nav-scrolled #masthead { background-color: #3d3d3d !important; }
 
+@media (max-width: 1100px) {
+  body:has(.rg-ps1-native-root) #masthead { width: 100%; margin-bottom: 0 !important; position: absolute; inset: 0 0 auto; }
+  body.rg-ps1-nav-scrolled:has(.rg-ps1-native-root) #masthead { position: fixed; }
+}
+
 .rg-ps1 {
   --rg-charcoal: #272c2e;
   --rg-ink: #3a3a3a;

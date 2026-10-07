@@ -134,6 +134,8 @@ test("the WordPress embed does not duplicate site branding and darkens the stick
   assert.match(app, /window\.scrollY > 0/);
   assert.match(app, /rg-ps1-nav-scrolled/);
   assert.match(styles, /body\.rg-ps1-nav-scrolled #masthead\s*\{[^}]*background-color:\s*#3d3d3d\s*!important/);
+  assert.match(styles, /@media \(max-width:\s*1100px\)[\s\S]*?body:has\(\.rg-ps1-native-root\) #masthead\s*\{[^}]*position:\s*absolute/);
+  assert.match(styles, /body\.rg-ps1-nav-scrolled:has\(\.rg-ps1-native-root\) #masthead\s*\{[^}]*position:\s*fixed/);
 });
 
 test("the WordPress hero breaks out to the viewport and matches the Royal Glass hero rhythm", async () => {
