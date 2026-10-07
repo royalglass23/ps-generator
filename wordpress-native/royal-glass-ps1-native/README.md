@@ -34,7 +34,7 @@ define( 'RG_PS1_SUPPORT_EMAIL', 'support@royalglass.co.nz' );
 
 `RG_PS1_GOOGLE_MAPS_API_KEY` is a browser key, so it is intentionally sent to the page. Restrict it in Google Cloud to the Maps JavaScript API and Places API (New), and to the production referrer `https://royalglass.co.nz/*` (plus any explicit staging origin used for testing).
 
-The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin queues both the ServiceM8/support message and applicant confirmation before it locks the application, then retries failed messages through the outbox.
+The site must have reliable SMTP delivery configured for `wp_mail()`. The plugin queues both the ServiceM8/support message and applicant confirmation before it locks the application, then retries failed messages through the outbox. PS1 emails set the visible sender to `PS1 Generator <support@royalglass.co.nz>` at the final PHPMailer boundary so a site-wide SMTP display name such as `Royal Glass` does not replace it; the SMTP provider may still show its authenticated envelope address as “on behalf of,” which is expected.
 
 ## Installation and rollout
 

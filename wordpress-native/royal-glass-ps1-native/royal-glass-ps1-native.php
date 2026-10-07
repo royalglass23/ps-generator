@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Royal Glass PS1 Application (Native)
  * Description: Runs the Royal Glass PS1 application directly in WordPress without an iframe or external application host.
- * Version: 0.1.9
+ * Version: 0.1.10
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Royal Glass
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RG_PS1_NATIVE_VERSION', '0.1.9' );
+define( 'RG_PS1_NATIVE_VERSION', '0.1.10' );
 define( 'RG_PS1_NATIVE_FILE', __FILE__ );
 define( 'RG_PS1_NATIVE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RG_PS1_NATIVE_URL', plugin_dir_url( __FILE__ ) );
