@@ -97,6 +97,20 @@ final class RG_PS1_Mailer {
 		);
 	}
 
+	public function schedule_dispatch(): void {
+		$hook = 'rg_ps1_native_mail_outbox_immediate';
+		if ( ! wp_next_scheduled( $hook ) ) {
+			wp_schedule_single_event( time(), $hook );
+		}
+		if ( false === has_action( 'shutdown', array( $this, 'spawn_scheduled_dispatch' ) ) ) {
+			add_action( 'shutdown', array( $this, 'spawn_scheduled_dispatch' ), PHP_INT_MAX );
+		}
+	}
+
+	public function spawn_scheduled_dispatch(): void {
+		spawn_cron();
+	}
+
 	public function dispatch_due(): void {
 		foreach ( $this->database->claim_due_emails() as $message ) {
 			$attachments          = array();
