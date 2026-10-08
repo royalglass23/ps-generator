@@ -22,7 +22,7 @@ The journey combines a customer-facing visual system selection with structured p
 
 Applicants may begin with incomplete information. They state what they need, provide the mandatory job address, select a project and Royal Glass system or “Not sure,” optionally describe locations and upload evidence, then provide mandatory contact details and submit the application for assessment.
 
-The production surface will ultimately be embedded in the Royal Glass WordPress site through a shortcode. The current Next.js application is the working visual and behavioural reference for that shortcode implementation.
+The current production candidate runs directly in the Royal Glass WordPress site through the `[royal_glass_ps1]` shortcode. The WordPress-native implementation owns the public runtime, intake persistence, private uploads, and queued email delivery. The earlier Next.js application remains a visual and behavioural reference, not the current deployment path.
 
 ## Capabilities and Constraints
 
@@ -44,8 +44,10 @@ The application must look native to the current Royal Glass website. The live we
 
 - Product language: `CONTEXT.md`
 - P1 journey boundaries: `docs/discovery/prototype-scope.md`
-- Current working surface: `web/src/app/application-form.tsx`
-- Current styles: `web/src/app/styles.css`
+- Current browser surface: `wordpress-native/royal-glass-ps1-native/assets/app.js`
+- Current styles: `wordpress-native/royal-glass-ps1-native/assets/app.css`
+- Current runtime and persistence: `wordpress-native/royal-glass-ps1-native/includes/`
+- Earlier behavioural reference: `web/src/app/application-form.tsx`
 - Local illustrative project images: `web/public/assets/`
 - Live visual authority: `https://www.royalglass.co.nz/`
 

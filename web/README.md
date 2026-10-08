@@ -1,5 +1,7 @@
 # Royal Glass PS1 portal backend
 
+> **Reference implementation:** this Next.js/Vercel architecture has been superseded by `../wordpress-native/royal-glass-ps1-native/` as the current deployable candidate. Keep this code for behavioural history and comparison; do not provision its external providers, apply its migrations, or deploy it unless that architecture is explicitly re-approved.
+
 Local backend foundation for the PS1 application journey. It is a Next.js application intended for Vercel, with Neon PostgreSQL, private Cloudflare R2 storage, and Resend delivery.
 
 ## Implemented journey

@@ -1,6 +1,6 @@
 # Royal Glass PS1 Application (WordPress Native)
 
-This is a separate WordPress-native implementation of the Royal Glass PS1 application. It does not modify or load the repository's original `web/` application or iframe wrapper.
+This is the current deployable implementation of the Royal Glass PS1 application. It runs entirely inside WordPress and does not modify or load the repository's earlier `web/` application or iframe wrapper.
 
 ## What it provides
 
@@ -53,6 +53,8 @@ After staff create the accepted Job Card or record the unaccepted non-job outcom
 9. Publish only after a production-shaped staging run passes and publication is explicitly approved.
 
 Activation does not migrate data from Neon, publish a page, alter the original iframe wrapper, or delete existing content. Deactivation unschedules this plugin's jobs but retains its tables and private files.
+
+The repository-level developer map and release history are in `docs/README.md` and `CHANGELOG.md`. The operator runbook is `docs/deployment/wordpress-ps1.md`. Repository state, a packaged ZIP, cPanel deployment, WordPress activation, configuration, live acceptance, and publication are separate evidence points.
 
 ## Current boundary
 

@@ -1,5 +1,7 @@
 # Royal Glass PS1 WordPress wrapper
 
+> **Legacy wrapper:** this iframe plugin belongs to the earlier separately hosted Next.js architecture. The current deployable candidate is `../../wordpress-native/royal-glass-ps1-native/`. Do not install this wrapper or configure `RG_PS1_APP_URL` unless the iframe architecture is explicitly re-approved.
+
 This plugin registers the `[royal_glass_ps1]` shortcode. The shortcode embeds the separately hosted PS1 application while the public page remains under the Royal Glass WordPress site.
 
 ## Deployment order
