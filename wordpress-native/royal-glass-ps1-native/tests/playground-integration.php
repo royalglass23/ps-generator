@@ -4,8 +4,7 @@
  */
 
 function rg_ps1_test_fail( string $message ): never {
-	fwrite( STDERR, "FAIL: {$message}\n" );
-	exit( 1 );
+	throw new RuntimeException( "FAIL: {$message}" );
 }
 
 error_reporting( E_ALL );
@@ -164,7 +163,7 @@ $ready_upload_id = wp_generate_uuid4();
 $ready_name = wp_generate_uuid4() . '.pdf';
 file_put_contents( RG_PS1_PRIVATE_UPLOAD_DIR . '/' . $ready_name, '%PDF-1.7 structurally-valid' );
 $upload_record = array(
-	'id' => $ready_upload_id, 'application_id' => $mail_id, 'original_name' => 'fixture.pdf',
+	'id' => $ready_upload_id, 'application_id' => $mail_id, 'original_name' => 'Council plans (rev 2).pdf',
 	'stored_name' => $ready_name, 'content_type' => 'application/pdf', 'size_bytes' => 27,
 	'status' => 'ready', 'created_at' => $mail_created,
 );
@@ -197,15 +196,22 @@ $database->enqueue_email(
 	)
 );
 $captured_mail = null;
-$mail_filter = static function ( $return, array $attributes ) use ( &$captured_mail ) {
-	$captured_mail = $attributes;
+$attachment_exists_during_send = false;
+$mail_filter = static function ( $return, array $attributes ) use ( &$captured_mail, &$attachment_exists_during_send ) {
+	if ( ! empty( $attributes['attachments'] ) ) {
+		$captured_mail = $attributes;
+		$attachment_exists_during_send = is_file( $attributes['attachments'][0] );
+	}
 	return true;
 };
 add_filter( 'pre_wp_mail', $mail_filter, 10, 2 );
 $mailer->dispatch_due();
 remove_filter( 'pre_wp_mail', $mail_filter, 10 );
-if ( ! is_array( $captured_mail ) || 1 !== count( $captured_mail['attachments'] ) || basename( $captured_mail['attachments'][0] ) !== $ready_name ) {
-	rg_ps1_test_fail( 'Structurally valid upload was not attached to staff mail.' );
+if ( ! is_array( $captured_mail ) || 1 !== count( $captured_mail['attachments'] ) || 'Council plans (rev 2).pdf' !== basename( $captured_mail['attachments'][0] ) || ! $attachment_exists_during_send ) {
+	rg_ps1_test_fail( 'Structurally valid upload did not keep its original filename in staff mail.' );
+}
+if ( file_exists( $captured_mail['attachments'][0] ) ) {
+	rg_ps1_test_fail( 'Temporary staff-mail attachment was not deleted after sending.' );
 }
 
 echo "STAGE: reviewed outcome retention\n";

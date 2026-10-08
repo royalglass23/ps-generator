@@ -50,6 +50,17 @@ test("private upload implementation blocks direct web access", async () => {
   assert.match(source, /index\.php/);
 });
 
+test("staff email attachments keep the applicant's original filename", async () => {
+  const storage = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
+  const mailer = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+
+  assert.doesNotMatch(storage, /\$original_name\s*=\s*sanitize_file_name/);
+  assert.match(mailer, /prepare_attachment\([\s\S]*?\$upload\['original_name'\]/);
+  assert.match(mailer, /trailingslashit\( \$this->storage->directory\(\) \)/);
+  assert.match(mailer, /\$sent\s*=\s*! \$attachment_error && wp_mail/);
+  assert.match(mailer, /finally\s*\{[\s\S]*?cleanup_attachments/);
+});
+
 test("bearer credentials are hashed and compared in constant time", async () => {
   const source = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
   assert.match(source, /hash\(\s*['\"]sha256['\"]/);
