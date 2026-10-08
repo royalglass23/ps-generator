@@ -92,7 +92,16 @@ final class RG_PS1_Storage {
 			return new WP_Error( 'UPLOAD_TOO_LARGE', 'This file is too large. The maximum file size is 10 MB.', array( 'status' => 413 ) );
 		}
 
-		$original_name = sanitize_file_name( wp_basename( (string) $file['name'] ) );
+		$submitted_name = (string) $file['name'];
+		$original_name  = wp_basename( str_replace( '\\', '/', $submitted_name ) );
+		if (
+			'' === $original_name
+			|| $original_name !== $submitted_name
+			|| strlen( $original_name ) > 255
+			|| 1 === preg_match( '/[\x00-\x1F\x7F]/', $original_name )
+		) {
+			return new WP_Error( 'UPLOAD_FAILED', 'The filename is not valid.', array( 'status' => 400 ) );
+		}
 		$extension     = strtolower( pathinfo( $original_name, PATHINFO_EXTENSION ) );
 		$allowed       = array(
 			'pdf'  => array( 'application/pdf' ),

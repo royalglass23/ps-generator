@@ -19,6 +19,23 @@ test("plugin defines dedicated persistence, retention, and mail-outbox tables", 
   assert.match(source, /dbDelta\s*\(/);
 });
 
+test("application submission returns after queuing mail instead of sending it inline", async () => {
+  const service = await readFile(new URL("includes/class-rg-ps1-service.php", root), "utf8");
+  const mailer = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+  const plugin = await readFile(new URL("royal-glass-ps1-native.php", root), "utf8");
+  const submit = service.match(
+    /public function submit\([\s\S]*?\n\t}\n\n\tpublic function record_outcome/,
+  )?.[0];
+
+  assert.ok(submit, "submit method should remain discoverable");
+  assert.match(submit, /schedule_dispatch\(\)/);
+  assert.doesNotMatch(submit, /dispatch_due\(\)/);
+  assert.match(mailer, /wp_schedule_single_event\(\s*time\(\),\s*\$hook\s*\)/);
+  assert.match(mailer, /add_action\(\s*['"]shutdown['"][\s\S]*?spawn_scheduled_dispatch/);
+  assert.match(mailer, /public function spawn_scheduled_dispatch\(\): void\s*\{\s*spawn_cron\(\)/);
+  assert.match(plugin, /add_action\(\s*['"]rg_ps1_native_mail_outbox_immediate['"]/);
+});
+
 test("plugin mail uses the PS1 Application sender name without replacing the configured sender address", async () => {
   const source = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
   assert.match(source, /wp_mail_from_name/);
@@ -48,6 +65,17 @@ test("private upload implementation blocks direct web access", async () => {
   assert.match(source, /RG_PS1_PRIVATE_UPLOAD_DIR/);
   assert.match(source, /deny from all/i);
   assert.match(source, /index\.php/);
+});
+
+test("staff email attachments keep the applicant's original filename", async () => {
+  const storage = await readFile(new URL("includes/class-rg-ps1-storage.php", root), "utf8");
+  const mailer = await readFile(new URL("includes/class-rg-ps1-mailer.php", root), "utf8");
+
+  assert.doesNotMatch(storage, /\$original_name\s*=\s*sanitize_file_name/);
+  assert.match(mailer, /prepare_attachment\([\s\S]*?\$upload\['original_name'\]/);
+  assert.match(mailer, /trailingslashit\( \$this->storage->directory\(\) \)/);
+  assert.match(mailer, /\$sent\s*=\s*! \$attachment_error && wp_mail/);
+  assert.match(mailer, /finally\s*\{[\s\S]*?cleanup_attachments/);
 });
 
 test("bearer credentials are hashed and compared in constant time", async () => {

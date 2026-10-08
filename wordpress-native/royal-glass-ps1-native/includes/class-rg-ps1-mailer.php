@@ -97,9 +97,25 @@ final class RG_PS1_Mailer {
 		);
 	}
 
+	public function schedule_dispatch(): void {
+		$hook = 'rg_ps1_native_mail_outbox_immediate';
+		if ( ! wp_next_scheduled( $hook ) ) {
+			wp_schedule_single_event( time(), $hook );
+		}
+		if ( false === has_action( 'shutdown', array( $this, 'spawn_scheduled_dispatch' ) ) ) {
+			add_action( 'shutdown', array( $this, 'spawn_scheduled_dispatch' ), PHP_INT_MAX );
+		}
+	}
+
+	public function spawn_scheduled_dispatch(): void {
+		spawn_cron();
+	}
+
 	public function dispatch_due(): void {
 		foreach ( $this->database->claim_due_emails() as $message ) {
-			$attachments = array();
+			$attachments          = array();
+			$attachment_workspace = null;
+			$attachment_error     = false;
 			foreach ( (array) json_decode( (string) $message['attachment_ids'], true ) as $upload_id ) {
 				$upload = $this->database->find_upload( (string) $message['application_id'], (string) $upload_id );
 				if ( ! $upload || 'ready' !== $upload['status'] ) {
@@ -108,7 +124,17 @@ final class RG_PS1_Mailer {
 				if ( $upload ) {
 					$path = $this->storage->path_for( (string) $upload['stored_name'] );
 					if ( $path ) {
-						$attachments[] = $path;
+						$attachment = $this->prepare_attachment(
+							$path,
+							(string) $upload['original_name'],
+							(string) $upload['id'],
+							$attachment_workspace
+						);
+						if ( $attachment ) {
+							$attachments[] = $attachment;
+						} else {
+							$attachment_error = true;
+						}
 					}
 				}
 			}
@@ -119,7 +145,7 @@ final class RG_PS1_Mailer {
 			$sender_name_filter = array( $this, 'sender_name' );
 			add_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
 			try {
-				$sent = wp_mail(
+				$sent = ! $attachment_error && wp_mail(
 					(array) json_decode( (string) $message['to_addresses'], true ),
 					(string) $message['subject'],
 					(string) $message['html_body'],
@@ -128,6 +154,7 @@ final class RG_PS1_Mailer {
 				);
 			} finally {
 				remove_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
+				$this->cleanup_attachments( $attachments, $attachment_workspace );
 			}
 			if ( $sent ) {
 				$this->database->mark_email_sent( (string) $message['id'] );
@@ -135,6 +162,51 @@ final class RG_PS1_Mailer {
 				$this->database->mark_email_failed( (string) $message['id'], (int) $message['attempts'] + 1, 'wp_mail returned false.' );
 			}
 		}
+	}
+
+	private function prepare_attachment( string $source, string $original_name, string $upload_id, ?string &$workspace ): ?string {
+		if (
+			'' === $original_name
+			|| $original_name !== wp_basename( str_replace( '\\', '/', $original_name ) )
+			|| 1 === preg_match( '/[\x00-\x1F\x7F]/', $original_name )
+		) {
+			return null;
+		}
+		if ( null === $workspace ) {
+			$workspace = trailingslashit( $this->storage->directory() ) . '.mail-' . wp_generate_uuid4();
+			if ( ! wp_mkdir_p( $workspace ) ) {
+				$workspace = null;
+				return null;
+			}
+			@chmod( $workspace, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		}
+
+		$attachment_directory = $workspace . DIRECTORY_SEPARATOR . sanitize_key( $upload_id );
+		if ( ! wp_mkdir_p( $attachment_directory ) ) {
+			return null;
+		}
+		$attachment = $attachment_directory . DIRECTORY_SEPARATOR . $original_name;
+		if ( ! copy( $source, $attachment ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+			@rmdir( $attachment_directory ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return null;
+		}
+		@chmod( $attachment, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		return $attachment;
+	}
+
+	private function cleanup_attachments( array $attachments, ?string $workspace ): void {
+		if ( null === $workspace ) {
+			return;
+		}
+		$workspace_prefix = trailingslashit( wp_normalize_path( $workspace ) );
+		foreach ( $attachments as $attachment ) {
+			$normalized = wp_normalize_path( (string) $attachment );
+			if ( str_starts_with( $normalized, $workspace_prefix ) ) {
+				wp_delete_file( (string) $attachment );
+				@rmdir( dirname( (string) $attachment ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			}
+		}
+		@rmdir( $workspace ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	}
 
 	private function review_address(): string {

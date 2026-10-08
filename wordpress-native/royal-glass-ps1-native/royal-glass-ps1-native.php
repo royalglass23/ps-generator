@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Royal Glass PS1 Application (Native)
  * Description: Runs the Royal Glass PS1 application directly in WordPress without an iframe or external application host.
- * Version: 0.2.2
+ * Version: 0.2.3
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Author: Royal Glass
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RG_PS1_NATIVE_VERSION', '0.2.2' );
+define( 'RG_PS1_NATIVE_VERSION', '0.2.3' );
 define( 'RG_PS1_NATIVE_FILE', __FILE__ );
 define( 'RG_PS1_NATIVE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RG_PS1_NATIVE_URL', plugin_dir_url( __FILE__ ) );
@@ -58,6 +58,7 @@ final class RG_PS1_Native_Plugin {
 		add_shortcode( 'royal_glass_ps1', array( $this, 'shortcode' ) );
 		add_action( 'rg_ps1_native_cleanup', array( $this->service, 'cleanup' ) );
 		add_action( 'rg_ps1_native_mail_outbox', array( $this->mailer, 'dispatch_due' ) );
+		add_action( 'rg_ps1_native_mail_outbox_immediate', array( $this->mailer, 'dispatch_due' ) );
 		add_action( 'admin_notices', array( $this, 'configuration_notice' ) );
 	}
 
@@ -79,6 +80,7 @@ final class RG_PS1_Native_Plugin {
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( 'rg_ps1_native_cleanup' );
 		wp_clear_scheduled_hook( 'rg_ps1_native_mail_outbox' );
+		wp_clear_scheduled_hook( 'rg_ps1_native_mail_outbox_immediate' );
 	}
 
 	public function enqueue_page_assets(): void {

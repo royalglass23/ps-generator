@@ -197,7 +197,7 @@ final class RG_PS1_Service {
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
-		$this->mailer->dispatch_due();
+		$this->mailer->schedule_dispatch();
 		return array( 'reference' => $reference, 'submittedAt' => gmdate( DATE_ATOM, strtotime( $now . ' UTC' ) ) );
 	}
 
