@@ -117,11 +117,7 @@ final class RG_PS1_Mailer {
 				$headers[] = 'Reply-To: ' . sanitize_email( (string) $message['reply_to'] );
 			}
 			$sender_name_filter = array( $this, 'sender_name' );
-			$sender_address_filter = array( $this, 'sender_address' );
-			$sender_identity_action = array( $this, 'apply_sender_identity' );
 			add_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
-			add_filter( 'wp_mail_from', $sender_address_filter, 999 );
-			add_action( 'phpmailer_init', $sender_identity_action, PHP_INT_MAX );
 			try {
 				$sent = wp_mail(
 					(array) json_decode( (string) $message['to_addresses'], true ),
@@ -132,8 +128,6 @@ final class RG_PS1_Mailer {
 				);
 			} finally {
 				remove_filter( 'wp_mail_from_name', $sender_name_filter, 999 );
-				remove_filter( 'wp_mail_from', $sender_address_filter, 999 );
-				remove_action( 'phpmailer_init', $sender_identity_action, PHP_INT_MAX );
 			}
 			if ( $sent ) {
 				$this->database->mark_email_sent( (string) $message['id'] );
@@ -168,17 +162,7 @@ final class RG_PS1_Mailer {
 	}
 
 	public function sender_name( string $current_name ): string {
-		return 'PS1 Generator';
-	}
-
-	public function sender_address( string $current_address ): string {
-		$support = defined( 'RG_PS1_SUPPORT_EMAIL' ) ? (string) RG_PS1_SUPPORT_EMAIL : (string) get_option( 'admin_email' );
-		return is_email( $support ) ? $support : $current_address;
-	}
-
-	public function apply_sender_identity( $phpmailer ): void {
-		$sender_address = $this->sender_address( (string) $phpmailer->From );
-		$phpmailer->setFrom( $sender_address, 'PS1 Generator', false );
+		return 'PS1 Application';
 	}
 
 	private function applicant_confirmation_html( string $reference, array $payload, array $uploads, string $support ): string {
